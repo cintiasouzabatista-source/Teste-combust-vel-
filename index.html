@@ -37,6 +37,10 @@ input, select, button { width: 100%; padding: 12px; border-radius: 10px; border:
 .btn-nav { background: none; border: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; }
 .btn-nav.active { color: var(--primary); }
 .btn-nav i { font-size: 20px; }
+.btn-edit { background: var(--primary); color:#fff; border:none; border-radius:8px; padding:6px 10px; cursor:pointer; margin-right:6px }
+.row-btn-abast { display:flex; gap:6px }
+.inline-edit-abast { display:none; margin-top:8px; padding:10px; border:1px dashed var(--border); border-radius:10px }
+.inline-edit-abast.active { display:block }
 
 .theme-toggle { position: absolute; top: 16px; right: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
@@ -128,6 +132,10 @@ body.dark input, body.dark select {
             <h3>Consumo km/l por mês</h3>
             <canvas id="graficoConsumo"></canvas>
         </div>
+<div class="card">
+    <h3>Km rodados por mês</h3>
+    <canvas id="graficoKm"></canvas>
+</div>
     </div>
 
     <!-- ABASTECER -->
@@ -216,233 +224,5 @@ body.dark input, body.dark select {
 </nav>
 
 <script>
-let abastecimentos = JSON.parse(localStorage.getItem('abast') || '[]');
-let manutencoes = JSON.parse(localStorage.getItem('manut') || '[]');
-let config = JSON.parse(localStorage.getItem('config') || '{"kmBase":94111,"dataBase":"' + new Date().toISOString().slice(0,16) + '","kmDia":30,"horaAtualizacao":"19:00","diasSemana":[1,2,3,4,5]}');
-let grafico;
-
-function showTab(id) {
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.btn-nav').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    event.target.closest('.btn-nav').classList.add('active');
-
-    if(id === 'abastecer') document.getElementById('aKm').value = calcularOdometroVirtual();
-    if(id === 'config') carregarConfig();
-}
-
-function toggleTheme() {
-    document.body.classList.toggle('dark');
-    localStorage.setItem('theme', document.body.classList.contains('dark')? 'dark' : 'light');
-}
-
-function salvar() {
-    localStorage.setItem('abast', JSON.stringify(abastecimentos));
-    localStorage.setItem('manut', JSON.stringify(manutencoes));
-}
-
-function salvarConfig() {
-    config.kmBase = parseInt(document.getElementById('kmBase').value) || 0;
-    config.dataBase = document.getElementById('dataBase').value;
-    config.kmDia = parseInt(document.getElementById('kmDia').value) || 30;
-    config.horaAtualizacao = document.getElementById('horaAtualizacao').value;
-    config.diasSemana = [...document.querySelectorAll('.dia-btn.active')].map(b => parseInt(b.dataset.dia));
-    localStorage.setItem('config', JSON.stringify(config));
-    atualizarPainel();
-}
-
-function carregarConfig() {
-    document.getElementById('kmBase').value = config.kmBase || '';
-    document.getElementById('dataBase').value = config.dataBase || '';
-    document.getElementById('kmDia').value = config.kmDia || 30;
-    document.getElementById('horaAtualizacao').value = config.horaAtualizacao || '19:00';
-    document.querySelectorAll('.dia-btn').forEach(b => {
-        b.classList.toggle('active', config.diasSemana.includes(parseInt(b.dataset.dia)));
-    });
-}
-
-document.querySelectorAll('.dia-btn').forEach(b => {
-    b.onclick = () => { b.classList.toggle('active'); salvarConfig(); };
-});
-
-function calcularOdometroVirtual() {
-    const kmBase = parseInt(config.kmBase) || 0;
-    const dataBase = new Date(config.dataBase);
-    const kmPorDia = parseInt(config.kmDia) || 0;
-    const diasSemana = config.diasSemana || [];
-    const hora = parseInt(config.horaAtualizacao?.split(':')[0]) || 19;
-
-    if (!kmBase ||!dataBase ||!kmPorDia) return kmBase;
-
-    let kmTotal = kmBase;
-    let dataCalc = new Date(dataBase);
-    const agora = new Date();
-
-    while (dataCalc < agora) {
-        dataCalc.setDate(dataCalc.getDate() + 1);
-        dataCalc.setHours(hora, 0, 0);
-        if (dataCalc > agora) break;
-        if (diasSemana.includes(dataCalc.getDay())) kmTotal += kmPorDia;
-    }
-    return kmTotal;
-}
-
-function atualizarPainel() {
-    const kmVirtual = calcularOdometroVirtual();
-    const ultimoAbast = abastecimentos[abastecimentos.length - 1];
-    const kmUltimoAbast = ultimoAbast? ultimoAbast.km : 0;
-    const manutOleo = manutencoes.find(m => m.tipo.toLowerCase().includes('óleo'));
-    const kmProxOleo = manutOleo? manutOleo.km + manutOleo.proxKm : 0;
-
-    document.getElementById('odometroVirtual').textContent = kmVirtual.toLocaleString('pt-BR') + ' km';
-    document.getElementById('ultimoKmAbast').textContent = kmUltimoAbast.toLocaleString('pt-BR') + ' km';
-    document.getElementById('proxTrocaOleo').textContent = kmProxOleo.toLocaleString('pt-BR') + ' km';
-    document.getElementById('faltaOleo').textContent = `Faltam ${(kmProxOleo - kmVirtual).toLocaleString('pt-BR')} km`;
-
-    let totalKm = 0, totalL = 0;
-    for(let i = 1; i < abastecimentos.length; i++) {
-        totalKm += abastecimentos[i].km - abastecimentos[i-1].km;
-        totalL += abastecimentos[i].litros;
-    }
-    const media = totalL > 0? (totalKm / totalL).toFixed(1) : 0;
-    document.getElementById('mediaReal').textContent = media + ' km/l';
-
-    const gasto = abastecimentos.reduce((acc, a) => acc + a.total, 0);
-    document.getElementById('gastoTotal').textContent = 'R$ ' + gasto.toFixed(2).replace('.', ',');
-
-    const autonomiaKm = (media * 6.5).toFixed(0);
-    const autonomiaDias = config.kmDia > 0? (autonomiaKm / config.kmDia).toFixed(0) : 0;
-    document.getElementById('autonomia').textContent = `${autonomiaKm}km ~ ${autonomiaDias} dias`;
-
-    document.getElementById('proxAtualizacao').textContent = `Atualiza hoje ${config.horaAtualizacao}`;
-
-    renderGrafico();
-}
-
-function ajustarOdometro() {
-    const kmAtualMoto = prompt('Qual o km real da moto agora?');
-    if (!kmAtualMoto || isNaN(kmAtualMoto)) return;
-    config.kmBase = parseInt(kmAtualMoto);
-    config.dataBase = new Date().toISOString();
-    localStorage.setItem('config', JSON.stringify(config));
-    atualizarPainel();
-}
-
-function addAbast() {
-    const data = document.getElementById('aData').value;
-    const kmDigitado = parseInt(document.getElementById('aKm').value);
-    const litros = parseFloat(document.getElementById('aLitros').value);
-    const valorL = parseFloat(document.getElementById('aValorL').value);
-    const total = parseFloat(document.getElementById('aTotal').value);
-    const tipo = document.getElementById('aTipo').value;
-
-    if (!data ||!kmDigitado ||!litros ||!valorL ||!total) {
-        alert('Preencha todos os campos'); return;
-    }
-
-    // AUTO AJUSTE DO ODOMETRO
-    const kmVirtual = calcularOdometroVirtual();
-    if (kmDigitado > kmVirtual) {
-        config.kmBase = kmDigitado;
-        config.dataBase = new Date().toISOString();
-        localStorage.setItem('config', JSON.stringify(config));
-    }
-
-    abastecimentos.push({ id: Date.now(), data, km: kmDigitado, litros, valorL, total, tipo });
-    abastecimentos.sort((a,b) => new Date(a.data) - new Date(b.data));
-    salvar();
-    renderAbast();
-    atualizarPainel();
-    limparCamposAbast();
-    document.getElementById('aKm').value = calcularOdometroVirtual();
-}
-
-function limparCamposAbast() {
-    document.getElementById('aLitros').value = '';
-    document.getElementById('aValorL').value = '';
-    document.getElementById('aTotal').value = '';
-}
-
-function renderAbast() {
-    const div = document.getElementById('listaAbast');
-    if(!abastecimentos.length) { div.innerHTML = '<p class="muted">Nenhum abastecimento</p>'; return; }
-    div.innerHTML = abastecimentos.slice().reverse().map(a => `
-        <div style="border-bottom:1px solid var(--border); padding:8px 0; display:flex; justify-content:space-between">
-            <div><b>${a.km.toLocaleString('pt-BR')} km</b> - ${a.litros}L R$${a.total.toFixed(2)}</div>
-            <button onclick="delAbast(${a.id})" style="color:var(--danger); background:none; border:none; cursor:pointer"><i class="fas fa-trash"></i></button>
-        </div>
-    `).join('');
-}
-
-function delAbast(id) {
-    abastecimentos = abastecimentos.filter(a => a.id!== id);
-    salvar(); renderAbast(); atualizarPainel();
-}
-
-function addManut() {
-    const data = document.getElementById('mData').value;
-    const km = parseInt(document.getElementById('mKm').value);
-    const tipo = document.getElementById('mTipo').value;
-    const valor = parseFloat(document.getElementById('mValor').value);
-    const proxKm = parseInt(document.getElementById('mProxKm').value) || 0;
-    if (!data ||!km ||!tipo) { alert('Preencha data, km e tipo'); return; }
-    manutencoes.push({ id: Date.now(), data, km, tipo, valor, proxKm });
-    salvar(); renderManut(); atualizarPainel();
-    document.querySelectorAll('#manutencao input').forEach(i => i.value = '');
-}
-
-function renderManut() {
-    const div = document.getElementById('listaManut');
-    if(!manutencoes.length) { div.innerHTML = '<p class="muted">Nenhuma manutenção</p>'; return; }
-    div.innerHTML = manutencoes.slice().reverse().map(m => `
-        <div style="border-bottom:1px solid var(--border); padding:8px 0; display:flex; justify-content:space-between">
-            <div><b>${m.tipo}</b> - ${m.km.toLocaleString('pt-BR')} km</div>
-            <button onclick="delManut(${m.id})" style="color:var(--danger); background:none; border:none; cursor:pointer"><i class="fas fa-trash"></i></button>
-        </div>
-    `).join('');
-}
-
-function delManut(id) {
-    manutencoes = manutencoes.filter(m => m.id!== id);
-    salvar(); renderManut(); atualizarPainel();
-}
-
-function renderGrafico() {
-    const ctx = document.getElementById('graficoConsumo').getContext('2d');
-    const meses = {};
-    abastecimentos.forEach((a, i) => {
-        if(i === 0) return;
-        const mes = a.data.slice(0,7);
-        const km = a.km - abastecimentos[i-1].km;
-        if(!meses[mes]) meses[mes] = {km:0, l:0};
-        meses[mes].km += km;
-        meses[mes].l += a.litros;
-    });
-    const labels = Object.keys(meses);
-    const data = labels.map(m => (meses[m].km / meses[m].l).toFixed(1));
-
-    if(grafico) grafico.destroy();
-    grafico = new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Km/L', data, backgroundColor: '#2563eb' }] },
-        options: { responsive: true, plugins: { legend: { display: false } }
-    });
-}
-
-function limparTudo() {
-    if(confirm('Apagar todos os dados?')) {
-        localStorage.clear();
-        location.reload();
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
-    document.getElementById('aData').value = new Date().toISOString().slice(0,10);
-    document.getElementById('mData').value = new Date().toISOString().slice(0,10);
-    renderAbast(); renderManut(); atualizarPainel();
-    setInterval(atualizarPainel, 60000);
-});
-</script>
 </body>
 </html>
