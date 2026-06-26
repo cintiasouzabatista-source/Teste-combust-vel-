@@ -228,7 +228,15 @@ body.dark input, body.dark select {
             <button class="modal-close" onclick="closeModalVeiculo()">&times;</button>
         </div>
         <div style="display:grid; gap:10px;">
-            <input id="vNome" type="text" placeholder="Nome do Veículo (Ex: Titan 160)">
+            <input id="vNome" type="text" placeholder="Nome/Apelido (Ex: Titan 160)">
+            <div class="grid-2">
+                <input id="vModelo" type="text" placeholder="Modelo (Ex: Honda CG)">
+                <input id="vAno" type="number" placeholder="Ano (Ex: 2023)">
+            </div>
+            <div class="grid-2">
+                <input id="vKmInicial" type="number" placeholder="Km de Aquisição">
+                <input id="vDataAquisicao" type="date">
+            </div>
             <button class="btn" onclick="addVeiculo()">Cadastrar Veículo</button>
         </div>
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 8px 0;">
@@ -236,7 +244,6 @@ body.dark input, body.dark select {
         <div id="listaVeiculos" style="max-height: 200px; overflow-y: auto;"></div>
     </div>
 </div>
-
 <nav class="bottom-nav">
     <button class="btn-nav active" onclick="showTab('painel')"><i class="fas fa-gauge-high"></i><span>Painel</span></button>
     <button class="btn-nav" onclick="showTab('abastecer')"><i class="fas fa-gas-pump"></i><span>Abastecer</span></button>
