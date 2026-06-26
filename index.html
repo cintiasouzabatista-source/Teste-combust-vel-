@@ -138,14 +138,15 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
             </div>
         </div>
         <div class="card">
-            <h3>Histórico</h3>
+            <h3>Histórico de Abastecimentos</h3>
             <div id="listaAbast"></div>
         </div>
     </div>
 
     <div id="manutencao" class="tab-content">
         <div class="card">
-            <h3>Adicionar Manutenção</h3>
+            <h3 id="tituloFormManut">Adicionar Manutenção</h3>
+            <input id="mId" type="hidden">
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <input id="mData" type="date">
                 <input id="mKm" type="number" placeholder="Km">
@@ -160,7 +161,8 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
                     <input id="mPdf" type="file" accept="application/pdf" style="display:none" onchange="processarPdf(this)">
                 </div>
 
-                <button class="btn" onclick="addManut()">Salvar Registro</button>
+                <button class="btn" id="btnSalvarManut" onclick="addManut()">Salvar Registro</button>
+                <button class="btn" id="btnCancelarManut" style="background:var(--muted); display:none;" onclick="limparFormManut()">Cancelar Edição</button>
             </div>
         </div>
         <div class="card">
@@ -272,9 +274,11 @@ function showTab(id) {
         renderAbast();
     }
     if(id === 'manutencao') {
+        limparFormManut();
         renderManut();
     }
     if(id === 'config') {
+        limparFormVeiculo();
         renderVeiculos();
         carregarCamposConfigAtivo();
     }
@@ -308,7 +312,7 @@ function calcularCombustivel(origem) {
     }
 }
 
-// CRUD VEICULOS
+// ================= CRUD VEÍCULOS =================
 function salvarVeiculo() {
     let id = document.getElementById('vId').value;
     let vNome = document.getElementById('vNome').value || "Novo Veículo";
@@ -349,7 +353,11 @@ function iniciarEditarVeiculo(id) {
     document.getElementById('vAno').value = v.vAno;
 
     document.getElementById('tituloGerenciarVeiculo').textContent = "Editar Dados do Veículo";
+    document.getElementById('btnSalvarVeiculo').textContent = "Atualizar Veículo";
+    document.getElementById('btnSalvarVeiculo').className = "btn btn-success";
     document.getElementById('btnCancelarEdicao').style.display = "block";
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function excluirVeiculo(id) {
@@ -387,6 +395,8 @@ function limparFormVeiculo() {
     document.getElementById('vNome').value = "";
     document.getElementById('vAno').value = "";
     document.getElementById('tituloGerenciarVeiculo').textContent = "Gerenciar Veículos";
+    document.getElementById('btnSalvarVeiculo').textContent = "Cadastrar / Atualizar Veículo";
+    document.getElementById('btnSalvarVeiculo').className = "btn";
     document.getElementById('btnCancelarEdicao').style.display = "none";
 }
 
@@ -438,7 +448,8 @@ function renderVeiculos() {
     `).join('');
 }
 
-// LOGICA ODOMETRO VIRTUAL
+
+// ================= LOGICA ODOMETRO VIRTUAL =================
 function calcularOdometroVirtualDoVeiculo(v) {
     const kmBase = parseInt(v.kmBase) || 0;
     if (!v.dataBase || !v.kmDia) return kmBase;
@@ -518,7 +529,8 @@ function ajustarOdometro() {
     atualizarPainel();
 }
 
-// NOVO: SALVAR / ATUALIZAR ABASTECIMENTO (COM EDITAR)
+
+// ================= CRUD ABASTECIMENTOS =================
 function addAbast() {
     const id = document.getElementById('aId').value;
     const data = document.getElementById('aData').value;
@@ -533,7 +545,6 @@ function addAbast() {
     }
 
     if (!id) {
-        // Modo Cadastro de Novo Abastecimento
         const kmVirtual = calcularOdometroVirtual();
         if (km > kmVirtual) {
             let vAtivo = obterVeiculoAtivo();
@@ -542,7 +553,6 @@ function addAbast() {
         }
         db.abastecimentos.push({ id: Date.now(), veiculoId: db.ativo, data, km, litros, valorL, total, tipo });
     } else {
-        // Modo Edição de Abastecimento Existente
         let idx = db.abastecimentos.findIndex(a => a.id == id);
         if (idx !== -1) {
             db.abastecimentos[idx] = { id: Number(id), veiculoId: db.ativo, data, km, litros, valorL, total, tipo };
@@ -557,7 +567,6 @@ function addAbast() {
     atualizarPainel();
 }
 
-// NOVO: FUNÇÃO PARA ENTRAR NO MODO EDIÇÃO DO ABASTECIMENTO
 function iniciarEditarAbast(id) {
     let a = db.abastecimentos.find(ab => ab.id == id);
     if (!a) return;
@@ -617,7 +626,8 @@ function delAbast(id) {
     }
 }
 
-// MANUTENÇÃO
+
+// ================= CRUD MANUTENÇÕES =================
 function processarPdf(input) {
     const file = input.files[0];
     if (file) {
@@ -645,6 +655,7 @@ function abrirPdfJanela(base64Data) {
 }
 
 function addManut() {
+    const id = document.getElementById('mId').value;
     const data = document.getElementById('mData').value;
     const km = parseInt(document.getElementById('mKm').value);
     const tipo = document.getElementById('mTipo').value;
@@ -653,12 +664,56 @@ function addManut() {
     
     if (!data || !km || !tipo) { alert('Preencha data, km e o tipo do serviço.'); return; }
     
-    db.manutencoes.push({ id: Date.now(), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: base64PdfTemporario });
+    if (!id) {
+        // Modo Cadastro
+        db.manutencoes.push({ id: Date.now(), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: base64PdfTemporario });
+    } else {
+        // Modo Edição
+        let idx = db.manutencoes.findIndex(m => m.id == id);
+        if (idx !== -1) {
+            // Se o usuário não enviou um novo PDF, mantém o PDF antigo do registro
+            let pdfExistente = base64PdfTemporario || db.manutencoes[idx].pdf || "";
+            db.manutencoes[idx] = { id: Number(id), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: pdfExistente };
+        }
+    }
+
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
     
+    limparFormManut();
     renderManut(); 
     atualizarPainel();
+}
+
+function iniciarEditarManut(id) {
+    let m = db.manutencoes.find(ma => ma.id == id);
+    if (!m) return;
+
+    document.getElementById('mId').value = m.id;
+    document.getElementById('mData').value = m.data;
+    document.getElementById('mKm').value = m.km;
+    document.getElementById('mTipo').value = m.tipo;
+    document.getElementById('mValor').value = m.valor;
+    document.getElementById('mProxKm').value = m.proxKm;
     
+    base64PdfTemporario = ""; // Reseta temporário para preservar o antigo caso não mude
+
+    if (m.pdf) {
+        document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:green; margin-right:6px"></i>Possui PDF (Clique p/ alterar)`;
+    } else {
+        document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:red; margin-right:6px"></i>Anexar PDF da Ordem de Serviço`;
+    }
+
+    document.getElementById('tituloFormManut').textContent = "Editar Registro de Manutenção";
+    document.getElementById('btnSalvarManut').textContent = "Atualizar Manutenção";
+    document.getElementById('btnSalvarManut').className = "btn btn-success";
+    document.getElementById('btnCancelarManut').style.display = "block";
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function limparFormManut() {
+    document.getElementById('mId').value = "";
+    document.getElementById('mData').value = new Date().toISOString().slice(0,10);
     document.getElementById('mKm').value = '';
     document.getElementById('mTipo').value = '';
     document.getElementById('mValor').value = '';
@@ -666,6 +721,11 @@ function addManut() {
     base64PdfTemporario = "";
     document.getElementById('mPdf').value = "";
     document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:red; margin-right:6px"></i>Anexar PDF da Ordem de Serviço`;
+
+    document.getElementById('tituloFormManut').textContent = "Adicionar Manutenção";
+    document.getElementById('btnSalvarManut').textContent = "Salvar Registro";
+    document.getElementById('btnSalvarManut').className = "btn";
+    document.getElementById('btnCancelarManut').style.display = "none";
 }
 
 function renderManut() {
@@ -681,6 +741,7 @@ function renderManut() {
                 ${m.pdf ? `<br><button onclick="abrirPdfJanela('${m.pdf}')" style="background:none; border:none; color:var(--primary); font-size:12px; cursor:pointer; text-align:left; width:auto; padding:0; margin-top:4px; font-weight:600;"><i class="fas fa-file-pdf"></i> Visualizar O.S.</button>` : ''}
             </div>
             <div class="item-lista-botoes">
+                <button onclick="iniciarEditarManut(${m.id})" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
                 <button onclick="delManut(${m.id})" style="color:var(--danger);"><i class="fas fa-trash"></i></button>
             </div>
         </div>
@@ -688,7 +749,7 @@ function renderManut() {
 }
 
 function delManut(id) {
-    if(confirm('Remover este registro?')) {
+    if(confirm('Remover este registro de manutenção?')) {
         db.manutencoes = db.manutencoes.filter(m => m.id !== id);
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
         renderManut();
@@ -696,7 +757,8 @@ function delManut(id) {
     }
 }
 
-// GRAFICO
+
+// ================= GRÁFICO DE CONSUMO =================
 function renderGraficoConsumo(absDoVeiculo){
   const c = document.getElementById('graficoConsumo'); if(!c) return;
   if(absDoVeiculo.length < 2){ if(grafico) grafico.destroy(); grafico = null; return; }
