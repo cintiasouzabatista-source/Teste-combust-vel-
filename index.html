@@ -43,7 +43,6 @@ input, select, button { width: 100%; padding: 12px; border-radius: 10px; border:
 .odometro-destaque { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 14px 16px; margin-bottom: 12px; }
 .odometro-destaque h1 { font-size: 28px; font-weight: 700; margin: 2px 0; line-height: 1.1; }
 .odometro-destaque p { color: rgba(255,255,255,0.8); font-size: 13px; }
-.btn-ajuste { width: 38px; height: 38px; cursor: pointer; }
 
 .dias-semana { display: flex; gap: 6px; flex-wrap: wrap; justify-content: space-between; }
 .dia-btn { width: calc(14.28% - 6px); min-width: 38px; height: 38px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -75,8 +74,8 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
                     <h1 id="odometroVirtual">0 km</h1>
                     <p id="proxAtualizacao" style="opacity:0.8; font-size:13px">Atualiza hoje 19:00</p>
                 </div>
-                <button class="btn-ajuste" onclick="ajustarOdometro()">
-                    <i class="fas fa-sliders-h"></i>
+                <button style="width:38px; height:38px; cursor:pointer; background:none; border:none; color:white;" onclick="showTab('config')">
+                    <i class="fas fa-sliders-h" style="font-size:20px;"></i>
                 </button>
             </div>
         </div>
@@ -177,6 +176,7 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
             <input id="vId" type="hidden">
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <input id="vNome" type="text" placeholder="Nome do Veículo (Ex: Titan 160, Civic)">
+                
                 <div class="grid-2">
                     <select id="vModelo">
                         <option value="Moto">Moto / Scooter</option>
@@ -184,6 +184,18 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
                     </select>
                     <input id="vAno" type="number" placeholder="Ano">
                 </div>
+
+                <div class="grid-2">
+                    <div>
+                        <label class="muted">Km de Aquisição</label>
+                        <input id="vKmAquisicao" type="number" placeholder="Ex: 93667">
+                    </div>
+                    <div>
+                        <label class="muted">Data de Aquisição</label>
+                        <input id="vDataAquisicao" type="date">
+                    </div>
+                </div>
+
                 <button class="btn" id="btnSalvarVeiculo" onclick="salvarVeiculo()"><i class="fas fa-plus"></i> Salvar Veículo</button>
                 <button class="btn" id="btnCancelarEdicao" style="background:var(--muted); display:none;" onclick="limparFormVeiculo()">Cancelar Edição</button>
             </div>
@@ -191,40 +203,29 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
 
         <div class="card">
             <h3>Seus Veículos Cadastrados</h3>
-            <p class="muted" style="margin-bottom: 8px;">Clique sobre o veículo para ativá-lo no app.</p>
+            <p class="muted" style="margin-bottom: 8px;">Toque no nome do veículo para ativá-lo no app.</p>
             <div id="listaVeiculos"></div>
         </div>
     </div>
 
     <div id="config" class="tab-content">
         <div class="card">
-            <h3>Especificações de Aquisição</h3>
-            <div style="display:grid; gap:12px; margin-top:8px;">
+            <h3>Regras do Odômetro Virtual</h3>
+            <p class="muted" style="margin-bottom:12px;">Defina como este veículo específico calcula a quilometragem automática diária.</p>
+            
+            <div style="display:grid; gap:12px;">
+                <label class="muted">Ponto de Partida Atual (Ajuste Manual)</label>
                 <div class="grid-2">
-                    <div>
-                        <label class="muted">Km de Aquisição</label>
-                        <input id="kmAquisicao" type="number" placeholder="Ex: 93667" onchange="salvarConfigAvancada()">
-                    </div>
-                    <div>
-                        <label class="muted">Data de Aquisição</label>
-                        <input id="dataAquisicao" type="date" onchange="salvarConfigAvancada()">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3>Odômetro Virtual - Regras de Cálculo</h3>
-            <div style="display:grid; gap:12px; margin-top:8px;">
-                <label class="muted">Ponto de Partida</label>
-                <div class="grid-2">
-                    <input id="kmBase" type="number" placeholder="Km inicial" onchange="salvarConfigAvancada()">
+                    <input id="kmBase" type="number" placeholder="Km atual" onchange="salvarConfigAvancada()">
                     <input id="dataBase" type="datetime-local" onchange="salvarConfigAvancada()">
                 </div>
+                
                 <label class="muted">Km rodados por dia ativo</label>
                 <input id="kmDia" type="number" value="30" onchange="salvarConfigAvancada()">
+                
                 <label class="muted">Horário da virada de lote</label>
                 <input id="horaAtualizacao" type="time" value="19:00" onchange="salvarConfigAvancada()">
+                
                 <label class="muted">Dias da semana que o veículo roda</label>
                 <div class="dias-semana" id="diasSemana">
                     <button type="button" class="dia-btn" data-dia="0">Dom</button>
@@ -255,6 +256,7 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
 <script>
 let db = JSON.parse(localStorage.getItem('fueltrack_master_db') || '{"veiculos":[], "ativo": null, "abastecimentos":[], "manutencoes":[]}');
 
+// Garante dados estruturados corretos de inicialização se vazio
 if (!db.veiculos || db.veiculos.length === 0) {
     let idPadrao = Date.now().toString();
     db.veiculos = [{
@@ -273,28 +275,15 @@ function showTab(id) {
     document.querySelectorAll('.btn-nav').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     
-    if(window.event && window.event.currentTarget) {
-        window.event.currentTarget.classList.add('active');
-    } else if (event && event.target) {
-        let btn = event.target.closest('.btn-nav');
-        if(btn) btn.classList.add('active');
-    }
+    // Sincroniza clique visual na barra inferior
+    const botoesNav = Array.from(document.querySelectorAll('.btn-nav'));
+    const correspondente = botoesNav.find(b => b.getAttribute('onclick').includes(`'${id}'`));
+    if(correspondente) correspondente.classList.add('active');
 
-    if(id === 'abastecer') {
-        limparFormAbast();
-        renderAbast();
-    }
-    if(id === 'manutencao') {
-        limparFormManut();
-        renderManut();
-    }
-    if(id === 'veiculosTab') {
-        limparFormVeiculo();
-        renderVeiculos();
-    }
-    if(id === 'config') {
-        carregarCamposConfigAtivo();
-    }
+    if(id === 'abastecer') { limparFormAbast(); renderAbast(); }
+    if(id === 'manutencao') { limparFormManut(); renderManut(); }
+    if(id === 'veiculosTab') { limparFormVeiculo(); renderVeiculos(); }
+    if(id === 'config') { carregarCamposConfigAtivo(); }
     atualizarPainel();
 }
 
@@ -325,19 +314,22 @@ function calcularCombustivel(origem) {
     }
 }
 
-// ================= CRUD VEÍCULOS =================
+// ================= CRUD VEÍCULOS UNIFICADO =================
 function salvarVeiculo() {
     let id = document.getElementById('vId').value;
     let vNome = document.getElementById('vNome').value || "Novo Veículo";
     let vModelo = document.getElementById('vModelo').value;
     let vAno = parseInt(document.getElementById('vAno').value) || "";
+    let kmAquisicao = parseInt(document.getElementById('vKmAquisicao').value) || 0;
+    let dataAquisicao = document.getElementById('vDataAquisicao').value || "";
 
     if(!id) {
         let novoId = Date.now().toString();
         db.veiculos.push({
-            id: novoId, vNome, vModelo, vAno,
-            kmAquisicao: 0, dataAquisicao: "", kmBase: 0,
-            dataBase: new Date().toISOString().slice(0,16), kmDia: 30, horaAtualizacao: "19:00", diasSemana: [1,2,3,4,5]
+            id: novoId, vNome, vModelo, vAno, kmAquisicao, dataAquisicao,
+            kmBase: kmAquisicao,
+            dataBase: new Date().toISOString().slice(0,16), 
+            kmDia: 30, horaAtualizacao: "19:00", diasSemana: [1,2,3,4,5]
         });
         db.ativo = novoId;
     } else {
@@ -346,6 +338,8 @@ function salvarVeiculo() {
             db.veiculos[index].vNome = vNome;
             db.veiculos[index].vModelo = vModelo;
             db.veiculos[index].vAno = vAno;
+            db.veiculos[index].kmAquisicao = kmAquisicao;
+            db.veiculos[index].dataAquisicao = dataAquisicao;
         }
     }
 
@@ -362,7 +356,9 @@ function iniciarEditarVeiculo(id) {
     document.getElementById('vId').value = v.id;
     document.getElementById('vNome').value = v.vNome;
     document.getElementById('vModelo').value = v.vModelo;
-    document.getElementById('vAno').value = v.vAno;
+    document.getElementById('vAno').value = v.vAno || '';
+    document.getElementById('vKmAquisicao').value = v.kmAquisicao || '';
+    document.getElementById('vDataAquisicao').value = v.dataAquisicao || '';
 
     document.getElementById('tituloGerenciarVeiculo').textContent = "Editar Dados do Veículo";
     document.getElementById('btnSalvarVeiculo').innerHTML = "<i class='fas fa-check'></i> Atualizar Veículo";
@@ -374,10 +370,10 @@ function iniciarEditarVeiculo(id) {
 
 function excluirVeiculo(id) {
     if(db.veiculos.length <= 1) {
-        alert("Você não pode excluir todos os seus veículos!");
+        alert("Você não pode excluir o único veículo restante!");
         return;
     }
-    if(confirm("Deseja apagar este veículo? Isso removerá permanentemente os históricos vinculados a ele.")) {
+    if(confirm("Deseja apagar este veículo? Todos os abastecimentos e manutenções dele serão excluídos.")) {
         db.abastecimentos = db.abastecimentos.filter(a => a.veiculoId !== id);
         db.manutencoes = db.manutencoes.filter(m => m.veiculoId !== id);
         db.veiculos = db.veiculos.filter(v => v.id !== id);
@@ -404,30 +400,34 @@ function limparFormVeiculo() {
     document.getElementById('vId').value = "";
     document.getElementById('vNome').value = "";
     document.getElementById('vAno').value = "";
+    document.getElementById('vKmAquisicao').value = "";
+    document.getElementById('vDataAquisicao').value = "";
     document.getElementById('tituloGerenciarVeiculo').textContent = "Cadastrar Novo Veículo";
     document.getElementById('btnSalvarVeiculo').innerHTML = "<i class='fas fa-plus'></i> Salvar Veículo";
     document.getElementById('btnSalvarVeiculo').className = "btn";
     document.getElementById('btnCancelarEdicao').style.display = "none";
 }
 
-function salvarConfigAvancada() {
-    let vAtivo = obterVeiculoAtivo();
-    vAtivo.kmAquisicao = parseInt(document.getElementById('kmAquisicao').value) || 0;
-    vAtivo.dataAquisicao = document.getElementById('dataAquisicao').value;
-    vAtivo.kmBase = parseInt(document.getElementById('kmBase').value) || 0;
-    vAtivo.dataBase = document.getElementById('dataBase').value;
-    vAtivo.kmDia = parseInt(document.getElementById('kmDia').value) || 0;
-    vAtivo.horaAtualizacao = document.getElementById('horaAtualizacao').value;
-    vAtivo.diasSemana = [...document.querySelectorAll('#diasSemana .dia-btn.active')].map(b => parseInt(b.dataset.dia));
-
-    localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-    atualizarPainel();
+function renderVeiculos() {
+    const div = document.getElementById('listaVeiculos');
+    div.innerHTML = db.veiculos.map(v => `
+        <div class="item-lista" style="${v.id === db.ativo ? 'border-left: 4px solid var(--primary); padding-left:8px; background: rgba(37,99,235,0.04);' : ''}">
+            <div onclick="selecionarVeiculoAtivo('${v.id}')" style="cursor:pointer; flex-grow:1;">
+                <i class="fas ${v.vModelo==='Moto'?'fa-motorcycle':'fa-car'}" style="margin-right:8px; color:${v.id === db.ativo ? 'var(--primary)':'var(--muted)'}"></i>
+                <strong>${v.vNome} (${v.vAno || '---'})</strong><br>
+                <span class="muted" style="font-size:12px;">Aquisição: ${v.kmAquisicao?.toLocaleString('pt-BR') || 0} km • ${v.dataAquisicao ? v.dataAquisicao.split('-').reverse().join('/') : '---'}</span>
+            </div>
+            <div class="item-lista-botoes">
+                <button onclick="iniciarEditarVeiculo('${v.id}')" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
+                <button onclick="excluirVeiculo('${v.id}')" style="color:var(--danger);"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+    `).join('');
 }
 
+// ================= GESTÃO EXCLUSIVA DO ODOMETRO VIRTUAL (CONFIG) =================
 function carregarCamposConfigAtivo() {
     let v = obterVeiculoAtivo();
-    document.getElementById('kmAquisicao').value = v.kmAquisicao || '';
-    document.getElementById('dataAquisicao').value = v.dataAquisicao || '';
     document.getElementById('kmBase').value = v.kmBase || '';
     document.getElementById('dataBase').value = v.dataBase || '';
     document.getElementById('kmDia').value = v.kmDia ?? 30;
@@ -438,29 +438,22 @@ function carregarCamposConfigAtivo() {
     });
 }
 
+function salvarConfigAvancada() {
+    let vAtivo = obterVeiculoAtivo();
+    vAtivo.kmBase = parseInt(document.getElementById('kmBase').value) || 0;
+    vAtivo.dataBase = document.getElementById('dataBase').value;
+    vAtivo.kmDia = parseInt(document.getElementById('kmDia').value) || 0;
+    vAtivo.horaAtualizacao = document.getElementById('horaAtualizacao').value;
+    vAtivo.diasSemana = [...document.querySelectorAll('#diasSemana .dia-btn.active')].map(b => parseInt(b.dataset.dia));
+
+    localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
+    atualizarPainel();
+}
+
 document.querySelectorAll('#diasSemana .dia-btn').forEach(b => {
     b.onclick = () => { b.classList.toggle('active'); salvarConfigAvancada(); };
 });
 
-function renderVeiculos() {
-    const div = document.getElementById('listaVeiculos');
-    div.innerHTML = db.veiculos.map(v => `
-        <div class="item-lista" style="${v.id === db.ativo ? 'border-left: 4px solid var(--primary); padding-left:8px; background: rgba(37,99,235,0.04);' : ''}">
-            <div onclick="selecionarVeiculoAtivo('${v.id}')" style="cursor:pointer; flex-grow:1;">
-                <i class="fas ${v.vModelo==='Moto'?'fa-motorcycle':'fa-car'}" style="margin-right:8px; color:${v.id === db.ativo ? 'var(--primary)':'var(--muted)'}"></i>
-                <strong>${v.vNome} (${v.vAno || '---'})</strong>
-                ${v.id === db.ativo ? '<span style="font-size:11px; background:var(--primary); color:#fff; padding:2px 6px; border-radius:12px; margin-left:6px;">Ativo</span>' : ''}
-            </div>
-            <div class="item-lista-botoes">
-                <button onclick="iniciarEditarVeiculo('${v.id}')" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
-                <button onclick="excluirVeiculo('${v.id}')" style="color:var(--danger);"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>
-    `).join('');
-}
-
-
-// ================= LOGICA ODOMETRO VIRTUAL =================
 function calcularOdometroVirtualDoVeiculo(v) {
     const kmBase = parseInt(v.kmBase) || 0;
     if (!v.dataBase || !v.kmDia) return kmBase;
@@ -526,20 +519,6 @@ function atualizarPainel() {
 
     renderGraficoConsumo(absDoVeiculo);
 }
-
-function ajustarOdometro() {
-    const kmAtual = prompt('Qual o km real do painel do veículo hoje?');
-    if (!kmAtual || isNaN(kmAtual)) return;
-    
-    let vAtivo = obterVeiculoAtivo();
-    vAtivo.kmBase = parseInt(kmAtual);
-    vAtivo.dataBase = new Date().toISOString().slice(0,16);
-    
-    localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-    carregarCamposConfigAtivo();
-    atualizarPainel();
-}
-
 
 // ================= CRUD ABASTECIMENTOS =================
 function addAbast() {
@@ -636,7 +615,6 @@ function delAbast(id) {
         atualizarPainel();
     }
 }
-
 
 // ================= CRUD MANUTENÇÕES =================
 function processarPdf(input) {
@@ -764,7 +742,6 @@ function delManut(id) {
         atualizarPainel();
     }
 }
-
 
 // ================= GRÁFICO DE CONSUMO =================
 function renderGraficoConsumo(absDoVeiculo){
