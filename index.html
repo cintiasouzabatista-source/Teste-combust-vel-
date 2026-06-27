@@ -52,8 +52,9 @@ input, select, button { width: 100%; padding: 12px; border-radius: 10px; border:
 .file-input-label { display: block; padding: 12px; background: var(--card); border: 1px dashed var(--border); border-radius: 10px; text-align: center; cursor: pointer; font-size: 14px; color: var(--muted); }
 
 body.dark input, body.dark select, body.dark .file-input-label { background: #334155; border-color: #475569; color: #f1f5f9; }
-#subtituloVeiculo { color: #2563eb; font-size: 14px; font-weight: 600; margin-bottom: 16px; display: block; }
-body.dark #subtituloVeiculo { color: #3b82f6; }
+.selector-veiculo-top { margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px; }
+.selector-veiculo-top select { border: 2px solid var(--primary); font-weight: 600; color: var(--primary); background: transparent; }
+body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; background: #1e293b; }
 
 .item-lista { border-bottom: 1px solid var(--border); padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
 .item-lista-botoes { display: flex; gap: 4px; }
@@ -64,7 +65,11 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
 <div class="container">
     <button class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
     <h1>FuelTrack Lead</h1>
-    <span id="subtituloVeiculo">Veículo Ativo: Carregando...</span>
+    
+    <div class="selector-veiculo-top">
+        <label class="muted"><i class="fas fa-car-side"></i> Selecione o Veículo Ativo:</label>
+        <select id="seletorVeiculoGlobal" onchange="selecionarVeiculoAtivo(this.value)"></select>
+    </div>
 
     <div id="painel" class="tab-content active">
         <div class="card odometro-destaque">
@@ -115,12 +120,26 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
     </div>
 
     <div id="abastecer" class="tab-content">
+        <div class="card" style="border: 2px dashed var(--primary); background: rgba(37,99,235,0.02)">
+            <h3><i class="fas fa-file-invoice-dollar"></i> Importar Nota Fiscal (NF-e)</h3>
+            <p class="muted" style="margin-bottom: 8px;">Carregue o arquivo .xml da nota fiscal para preenchimento automático.</p>
+            <div class="grid-2">
+                <div class="file-input-wrapper">
+                    <label class="file-input-label" for="fileNfe" id="labelNfeText">
+                        <i class="fas fa-qrcode" style="color:var(--primary); margin-right:6px"></i>Selecionar XML da NF-e
+                    </label>
+                    <input id="fileNfe" type="file" accept=".xml" style="display:none" onchange="processarXmlNfe(this)">
+                </div>
+                <button class="btn" style="background: var(--muted); font-size:12px; height:45px;" onclick="simularLeituraNfe()">Simular NF-e</button>
+            </div>
+        </div>
+
         <div class="card">
             <h3 id="tituloFormAbast">Novo Abastecimento</h3>
             <input id="aId" type="hidden">
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <input id="aData" type="date">
-                <input id="aKm" type="number" placeholder="Km odômetro">
+                <input id="aKm" type="number" placeholder="Digite apenas o Km atual do odômetro">
                 <div class="grid-2">
                     <input id="aLitros" type="number" step="0.01" placeholder="Litros" oninput="calcularCombustivel('litros')">
                     <input id="aValorL" type="number" step="0.01" placeholder="R$ / L" oninput="calcularCombustivel('valorL')">
@@ -203,7 +222,6 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
 
         <div class="card">
             <h3>Seus Veículos Cadastrados</h3>
-            <p class="muted" style="margin-bottom: 8px;">Toque no nome do veículo para ativá-lo no app.</p>
             <div id="listaVeiculos"></div>
         </div>
     </div>
@@ -256,7 +274,6 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
 <script>
 let db = JSON.parse(localStorage.getItem('fueltrack_master_db') || '{"veiculos":[], "ativo": null, "abastecimentos":[], "manutencoes":[]}');
 
-// Garante dados estruturados corretos de inicialização se vazio
 if (!db.veiculos || db.veiculos.length === 0) {
     let idPadrao = Date.now().toString();
     db.veiculos = [{
@@ -275,7 +292,6 @@ function showTab(id) {
     document.querySelectorAll('.btn-nav').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     
-    // Sincroniza clique visual na barra inferior
     const botoesNav = Array.from(document.querySelectorAll('.btn-nav'));
     const correspondente = botoesNav.find(b => b.getAttribute('onclick').includes(`'${id}'`));
     if(correspondente) correspondente.classList.add('active');
@@ -296,6 +312,12 @@ function obterVeiculoAtivo() {
     return db.veiculos.find(v => v.id === db.ativo) || db.veiculos[0];
 }
 
+function sincronizarSeletorGlobal() {
+    const seletor = document.getElementById('seletorVeiculoGlobal');
+    if(!seletor) return;
+    seletor.innerHTML = db.veiculos.map(v => `<option value="${v.id}" ${v.id === db.ativo ? 'selected' : ''}>${v.vNome} (${v.vModelo})</option>`).join('');
+}
+
 function calcularCombustivel(origem) {
     let litros = parseFloat(document.getElementById('aLitros').value);
     let valorL = parseFloat(document.getElementById('aValorL').value);
@@ -312,6 +334,51 @@ function calcularCombustivel(origem) {
             document.getElementById('aLitros').value = (total / valorL).toFixed(2);
         }
     }
+}
+
+// ================= LEITURA DE NOTA FISCAL (XML) =================
+function processarXmlNfe(input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+                
+                // Padrão SEFAZ para Quantidade e Valor Unitário / Total do item
+                const qComTag = xmlDoc.getElementsByTagName("qCom")[0];
+                const vUnComTag = xmlDoc.getElementsByTagName("vUnCom")[0];
+                const vProdTag = xmlDoc.getElementsByTagName("vProd")[0];
+                
+                if (qComTag && vProdTag) {
+                    const litros = parseFloat(qComTag.textContent);
+                    const total = parseFloat(vProdTag.textContent);
+                    const valorL = vUnComTag ? parseFloat(vUnComTag.textContent) : (total / litros);
+                    
+                    document.getElementById('aLitros').value = litros.toFixed(2);
+                    document.getElementById('aValorL').value = valorL.toFixed(2);
+                    document.getElementById('aTotal').value = total.toFixed(2);
+                    
+                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> NF Importada!`;
+                    alert("Dados da nota importados com sucesso! Agora preencha apenas o Km atual.");
+                } else {
+                    alert("Não encontramos os campos de quantidade e valor no XML carregado. Verifique se é uma NF-e de combustível válida.");
+                }
+            } catch (err) {
+                alert("Erro ao ler o arquivo XML.");
+            }
+        };
+        reader.readAsText(file);
+    }
+}
+
+function simularLeituraNfe() {
+    // Valores de teste para o usuário validar o funcionamento
+    document.getElementById('aLitros').value = "12.54";
+    document.getElementById('aValorL').value = "5.59";
+    document.getElementById('aTotal').value = "70.10";
+    alert("Simulação Concluída! Injetados 12,54 Litros a R$ 5,59. Digite apenas o Km para salvar.");
 }
 
 // ================= CRUD VEÍCULOS UNIFICADO =================
@@ -346,6 +413,7 @@ function salvarVeiculo() {
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
     limparFormVeiculo();
     renderVeiculos();
+    sincronizarSeletorGlobal();
     atualizarPainel();
 }
 
@@ -385,6 +453,7 @@ function excluirVeiculo(id) {
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
         limparFormVeiculo();
         renderVeiculos();
+        sincronizarSeletorGlobal();
         atualizarPainel();
     }
 }
@@ -393,6 +462,7 @@ function selecionarVeiculoAtivo(id) {
     db.ativo = id;
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
     renderVeiculos();
+    sincronizarSeletorGlobal();
     atualizarPainel();
 }
 
@@ -425,7 +495,7 @@ function renderVeiculos() {
     `).join('');
 }
 
-// ================= GESTÃO EXCLUSIVA DO ODOMETRO VIRTUAL (CONFIG) =================
+// ================= GESTÃO EXCLUSIVA DO ODOMETRO VIRTUAL =================
 function carregarCamposConfigAtivo() {
     let v = obterVeiculoAtivo();
     document.getElementById('kmBase').value = v.kmBase || '';
@@ -481,8 +551,6 @@ function calcularOdometroVirtual() {
 
 function atualizarPainel() {
     const vAtivo = obterVeiculoAtivo();
-    document.getElementById('subtituloVeiculo').textContent = `Veículo Ativo: ${vAtivo.vNome} (${vAtivo.vModelo} - Ano ${vAtivo.vAno || '---'})`;
-
     const kmVirtual = calcularOdometroVirtual();
     const absDoVeiculo = db.abastecimentos.filter(a => a.veiculoId === db.ativo);
     const manutDoVeiculo = db.manutencoes.filter(m => m.veiculoId === db.ativo);
@@ -584,6 +652,8 @@ function limparFormAbast() {
     document.getElementById('aValorL').value = '';
     document.getElementById('aTotal').value = '';
     document.getElementById('aKm').value = calcularOdometroVirtual();
+    document.getElementById('fileNfe').value = "";
+    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-qrcode" style="color:var(--primary); margin-right:6px"></i>Selecionar XML da NF-e`;
     
     document.getElementById('tituloFormAbast').textContent = "Novo Abastecimento";
     document.getElementById('btnSalvarAbast').textContent = "Salvar Abastecimento";
@@ -616,14 +686,13 @@ function delAbast(id) {
     }
 }
 
-// ================= CRUD MANUTENÇÕES =================
+// ================= CRUD MANUTENÇÕES + ARQUIVOS =================
 function processarPdf(input) {
     const file = input.files[0];
     if (file) {
         if (file.size > 1.5 * 1024 * 1024) { 
             alert("Arquivo muito grande! Escolha um PDF de até 1.5MB.");
-            input.value = "";
-            return;
+            input.value = ""; return;
         }
         const reader = new FileReader();
         reader.onload = function (e) {
@@ -634,12 +703,24 @@ function processarPdf(input) {
     }
 }
 
+// SISTEMA SEGURO DE VISUALIZAÇÃO VIA BLOB NATIVO (Ignora bloqueios de segurança móvel)
 function abrirPdfJanela(base64Data) {
-    const win = window.open();
-    if(win) {
-        win.document.write(`<iframe src="${base64Data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-    } else {
-        alert("Ative as permissões de pop-up no navegador para ler o anexo.");
+    try {
+        const parts = base64Data.split(';base64,');
+        const contentType = parts[0].split(':')[1];
+        const raw = window.atob(parts[1]);
+        const rawLength = raw.length;
+        const uInt8Array = new Uint8Array(rawLength);
+        
+        for (let i = 0; i < rawLength; ++i) {
+            uInt8Array[i] = raw.charCodeAt(i);
+        }
+        
+        const blob = new Blob([uInt8Array], { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+    } catch(e) {
+        alert("Erro ao renderizar o PDF. Certifique-se de que é um arquivo válido.");
     }
 }
 
@@ -664,7 +745,6 @@ function addManut() {
     }
 
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-    
     limparFormManut();
     renderManut(); 
     atualizarPainel();
@@ -680,7 +760,6 @@ function iniciarEditarManut(id) {
     document.getElementById('mTipo').value = m.tipo;
     document.getElementById('mValor').value = m.valor;
     document.getElementById('mProxKm').value = m.proxKm;
-    
     base64PdfTemporario = ""; 
 
     if (m.pdf) {
@@ -717,14 +796,14 @@ function limparFormManut() {
 function renderManut() {
     const div = document.getElementById('listaManut');
     const manutDoVeiculo = db.manutencoes.filter(m => m.veiculoId === db.ativo);
-    if(!manutDoVeiculo.length) { div.innerHTML = '<p class="muted">Nenhuma manutenção registrada.</p>'; return; }
+    if(!manutDoVeiculo.length) { div.innerHTML = '<p class="muted">Nenhuma manutenção registrada para este veículo.</p>'; return; }
     
     div.innerHTML = manutDoVeiculo.slice().reverse().map(m => `
         <div class="item-lista">
             <div>
                 <b>${m.tipo}</b> - ${m.km.toLocaleString('pt-BR')} km <br>
                 <span class="muted">R$ ${m.valor.toFixed(2)} • ${m.data.split('-').reverse().join('/')}</span>
-                ${m.pdf ? `<br><button onclick="abrirPdfJanela('${m.pdf}')" style="background:none; border:none; color:var(--primary); font-size:12px; cursor:pointer; text-align:left; width:auto; padding:0; margin-top:4px; font-weight:600;"><i class="fas fa-file-pdf"></i> Visualizar O.S.</button>` : ''}
+                ${m.pdf ? `<br><button onclick="abrirPdfJanela('${m.pdf}')" style="background:none; border:none; color:var(--primary); font-size:13px; cursor:pointer; text-align:left; width:auto; padding:0; margin-top:6px; font-weight:700;"><i class="fas fa-eye"></i> Visualizar O.S. (PDF)</button>` : ''}
             </div>
             <div class="item-lista-botoes">
                 <button onclick="iniciarEditarManut(${m.id})" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
@@ -784,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('aData').value = new Date().toISOString().slice(0,10);
     document.getElementById('mData').value = new Date().toISOString().slice(0,10);
     
+    sincronizarSeletorGlobal();
     atualizarPainel();
     setInterval(atualizarPainel, 60000);
 });
