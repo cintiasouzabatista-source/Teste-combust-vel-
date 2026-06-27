@@ -76,6 +76,7 @@ body.dark input, body.dark select, body.dark .file-input-label { background: #33
         <select id="seletorVeiculoGlobal" onchange="selecionarVeiculoAtivo(this.value)"></select>
     </div>
 
+    <!-- PAINEL -->
     <div id="painel" class="tab-content active">
         <div class="card odometro-destaque">
             <div style="display:flex; justify-content:space-between; align-items:center">
@@ -124,28 +125,36 @@ body.dark input, body.dark select, body.dark .file-input-label { background: #33
         </div>
     </div>
 
+    <!-- ABASTECER -->
     <div id="abastecer" class="tab-content">
         <div class="card" style="border: 2px dashed var(--primary); background: rgba(37,99,235,0.02)">
             <h3><i class="fas fa-qrcode"></i> Cupom Fiscal (NFC-e)</h3>
-            <p class="muted" style="margin-bottom: 8px;">Aponte a câmera para o QR Code ou digite a chave numérica abaixo.</p>
+            <p class="muted" style="margin-bottom: 8px;">Tire uma foto do QR Code ou digite a chave numérica abaixo.</p>
             
-            <div class="grid-2">
-                <button class="btn" onclick="ligarCameraLocal()"><i class="fas fa-camera"></i> Escanear</button>
-                <button class="btn" style="background: var(--muted);" onclick="desligarCameraLocal()">Fechar Câmera</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="file-input-wrapper">
+                    <label class="file-input-label" for="fotoQrCode" id="labelFotoQr" style="border: 1px solid var(--primary); color: var(--primary); padding: 12px 6px;">
+                        <i class="fas fa-camera"></i> Tirar Foto QR
+                    </label>
+                    <input id="fotoQrCode" type="file" accept="image/*" capture="environment" style="display:none" onchange="processarFotoQrCode(this)">
+                </div>
+                <button class="btn" style="background: var(--muted); font-size: 13px;" onclick="ligarCameraLocal()"><i class="fas fa-video"></i> Scanner Ao Vivo</button>
             </div>
 
             <div id="scanner-preview-container">
                 <div class="scanning-line"></div>
                 <video id="video-scanner" playsinline></video>
-                <canvas id="canvas-hidden" style="display:none;"></canvas>
+                <button class="btn btn-danger" style="position:absolute; bottom:10px; left:10px; right:10px; width:auto; padding:6px;" onclick="desligarCameraLocal()">Fechar Câmera</button>
             </div>
+
+            <canvas id="canvas-hidden" style="display:none;"></canvas>
 
             <div style="margin-top:12px;">
                 <label class="muted">Chave de Acesso (44 dígitos):</label>
                 <input id="nfeChave" type="text" placeholder="Digite ou cole a chave de 44 números..." oninput="validarChaveManual(this.value)" style="text-align:center; font-size:13px; letter-spacing: 0.5px;">
                 
                 <div id="nfeActions" style="display:none; margin-top: 10px; text-align:center;">
-                    <p style="color:var(--success); font-weight:700; font-size:14px;" id="msgSucessoChave"><i class="fas fa-check-circle"></i> Chave Aceita!</p>
+                    <p style="color:var(--success); font-weight:700; font-size:14px;" id="msgSucessoChave"><i class="fas fa-check-circle"></i> Dados Identificados!</p>
                     <button class="btn" style="background: var(--success); font-size:13px; margin-top:6px;" onclick="irParaSefaz()">
                         <i class="fas fa-download"></i> Ir para Sefaz baixar o XML
                     </button>
@@ -189,6 +198,7 @@ body.dark input, body.dark select, body.dark .file-input-label { background: #33
         </div>
     </div>
 
+    <!-- MANUTENÇÃO -->
     <div id="manutencao" class="tab-content">
         <div class="card">
             <h3 id="tituloFormManut">Adicionar Manutenção</h3>
@@ -217,6 +227,7 @@ body.dark input, body.dark select, body.dark .file-input-label { background: #33
         </div>
     </div>
 
+    <!-- MENU VEÍCULOS -->
     <div id="veiculosTab" class="tab-content">
         <div class="card">
             <h3 id="tituloGerenciarVeiculo">Cadastrar Novo Veículo</h3>
@@ -254,6 +265,7 @@ body.dark input, body.dark select, body.dark .file-input-label { background: #33
         </div>
     </div>
 
+    <!-- CONFIG -->
     <div id="config" class="tab-content">
         <div class="card">
             <h3>Regras do Odômetro Virtual</h3>
@@ -339,7 +351,7 @@ function toggleTheme() {
     localStorage.setItem('theme', document.body.classList.contains('dark')? 'dark' : 'light');
 }
 
-function obterVeiculoAtivo() {
+function obtenerVeiculoAtivo() {
     return db.veiculos.find(v => v.id === db.ativo) || db.veiculos[0];
 }
 
@@ -367,65 +379,92 @@ function calcularCombustivel(origem) {
     }
 }
 
-// ================= VALIDAÇÃO MANUAL MELHORADA =================
-// ================= VALIDAÇÃO E EXTRAÇÃO AUTOMÁTICA AO COLAR =================
-function validarChaveManual(valor) {
-    // Se o usuário colar o link completo do QR Code (https://...), extrai apenas os números
-    let chaveLimpa = valor.replace(/\D/g, ''); 
+// ================= PROCESSAMENTO INTELIGENTE DE FOTO E LINK =================
+function processarFotoQrCode(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    document.getElementById('labelFotoQr').innerHTML = `<i class="fas fa-spinner fa-spin"></i> Lendo imagem...`;
     
-    // Se colou o link do QR Code do estado de SP, geralmente os dados de valor e litros estão no fim do link
-    if (valor.includes('p=') || valor.includes('vProd=')) {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = function() {
+        const canvas = document.getElementById('canvas-hidden');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        
+        if (code) {
+            document.getElementById('labelFotoQr').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> QR Lido!`;
+            processarConteudoQrCode(code.data);
+        } else {
+            document.getElementById('labelFotoQr').innerHTML = `<i class="fas fa-camera"></i> Tirar Foto QR`;
+            alert("Não foi possível ler o QR Code nesta foto. Deixe o cupom bem plano e reto, tire a foto de cima sem tremer.");
+        }
+    };
+}
+
+function processarConteudoQrCode(conteudo) {
+    const regexChave = /\d{44}/;
+    const match = conteudo.match(regexChave);
+    let chaveEncontrada = match ? match[0] : "";
+
+    if (chaveEncontrada) {
+        document.getElementById('nfeChave').value = chaveEncontrada;
+    }
+
+    if (conteudo.includes('?') || conteudo.includes('&') || conteudo.includes('p=')) {
         try {
-            // Tenta extrair o valor total e litros direto dos parâmetros da URL colada
-            const urlParams = new URLSearchParams(valor.substring(valor.indexOf('?')));
+            let stringParams = conteudo.substring(conteudo.indexOf('?')).replace(/;/g, '&');
+            const urlParams = new URLSearchParams(stringParams);
             
-            // Procura por padrões comuns de cupons fiscais (vProd = Valor total, qCom = Quantidade)
-            let totalCupom = urlParams.get('vProd') || urlParams.get('vCFe');
-            let litrosCupom = urlParams.get('qCom');
+            let totalCupom = urlParams.get('vProd') || urlParams.get('vCFe') || urlParams.get('vTotal') || urlParams.get('p')?.split('|')[2];
+            let litrosCupom = urlParams.get('qCom') || urlParams.get('p')?.split('|')[3];
+
+            if (totalCupom) {
+                let valorLimpo = parseFloat(totalCupom);
+                if (!isNaN(valorLimpo)) document.getElementById('aTotal').value = valorLimpo.toFixed(2);
+            }
+            if (litrosCupom) {
+                let litrosLimpos = parseFloat(litrosCupom);
+                if (!isNaN(litrosLimpos)) document.getElementById('aLitros').value = litrosLimpos.toFixed(2);
+            }
             
-            if (totalCupom) document.getElementById('aTotal').value = parseFloat(totalCupom).toFixed(2);
-            if (litrosCupom) document.getElementById('aLitros').value = parseFloat(litrosCupom).toFixed(2);
-            if (totalCupom && litrosCupom) {
-                document.getElementById('aValorL').value = (parseFloat(totalCupom) / parseFloat(litrosCupom)).toFixed(2);
+            let t = parseFloat(document.getElementById('aTotal').value);
+            let l = parseFloat(document.getElementById('aLitros').value);
+            if (!isNaN(t) && !isNaN(l) && l > 0) {
+                document.getElementById('aValorL').value = (t / l).toFixed(2);
             }
         } catch (e) {
-            console.log("Link simples inserido, processando apenas a chave numérica.");
+            console.log("Erro na extração dos valores integrados:", e);
         }
     }
 
-    // Se a chave limpa tiver mais de 44 dígitos (caso venha com lixo), pega apenas os primeiros 44
-    if (chaveLimpa.length > 44) {
-        // Muitas vezes o link começa com os 44 números da chave
-        chaveLimpa = chaveLimpa.substring(0, 44);
-    }
+    validarChaveManual(document.getElementById('nfeChave').value);
+}
 
+function validarChaveManual(valor) {
+    let limpo = valor.replace(/\D/g, '');
+    if (limpo.length > 44) limpo = limpo.substring(0, 44);
+    
     const actions = document.getElementById('nfeActions');
     const msg = document.getElementById('msgSucessoChave');
 
-    if (chaveLimpa.length === 44) {
-        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave Detectada e Colada!`;
+    if (limpo.length === 44) {
+        document.getElementById('nfeChave').value = limpo;
+        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave Carregada com Sucesso!`;
         actions.style.display = 'block';
-        
-        // Devolve a chave limpa e certinha para o campo de texto
-        document.getElementById('nfeChave').value = chaveLimpa;
-
-        // Se o usuário copiou o link completo, tenta extrair o número do cupom direto da chave
-        // Os dígitos de 26 a 34 na chave de acesso representam o número do documento fiscal (NFC-e)
-        let numCupomDoCodigo = parseInt(chaveLimpa.substring(25, 34));
-        if (!isNaN(numCupomDoCodigo) && numCupomDoCodigo > 0) {
-            console.log("Número do cupom extraído da chave: " + numCupomDoCodigo);
-        }
     } else {
         actions.style.display = 'none';
     }
 }
 
-
-function irParaSefaz() {
-    window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank');
-}
-
-// ================= SCANNER LOCAL VIA CÂMERA =================
+// ================= SCANNER LOCAL AO VIVO =================
 function ligarCameraLocal() {
     const video = document.getElementById('video-scanner');
     const container = document.getElementById('scanner-preview-container');
@@ -442,7 +481,7 @@ function ligarCameraLocal() {
         animationFrameScanner = requestAnimationFrame(escanearFrameLocal);
     })
     .catch(function(err) {
-        alert("Erro ao abrir a câmera local. Verifique as permissões de privacidade.");
+        alert("Erro ao abrir a câmera ao vivo.");
         container.style.display = 'none';
     });
 }
@@ -470,21 +509,18 @@ function escanearFrameLocal() {
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
         
         if (code) {
-            const regexChave = /\d{44}/;
-            const match = code.data.match(regexChave);
-            
-            if (match && match[0]) {
-                desligarCameraLocal();
-                const chave = match[0];
-                document.getElementById('nfeChave').value = chave;
-                validarChaveManual(chave);
-                return;
-            }
+            desligarCameraLocal();
+            processarConteudoQrCode(code.data);
+            return;
         }
     }
     if (streamVideoLocal) {
         animationFrameScanner = requestAnimationFrame(escanearFrameLocal);
     }
+}
+
+function irParaSefaz() {
+    window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank');
 }
 
 function processarXmlNfe(input) {
@@ -511,8 +547,6 @@ function processarXmlNfe(input) {
                     
                     document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Importado!`;
                     alert("Dados carregados com sucesso!");
-                } else {
-                    alert("A estrutura deste XML não corresponde a um cupom de combustível reconhecido.");
                 }
             } catch (err) {
                 alert("Erro crítico na leitura do arquivo XML.");
@@ -522,7 +556,7 @@ function processarXmlNfe(input) {
     }
 }
 
-// ================= CRUD VEÍCULOS UNIFICADO =================
+// ================= CRUD VEÍCULOS =================
 function salvarVeiculo() {
     let id = document.getElementById('vId').value;
     let vNome = document.getElementById('vNome').value || "Novo Veículo";
@@ -535,8 +569,7 @@ function salvarVeiculo() {
         let novoId = Date.now().toString();
         db.veiculos.push({
             id: novoId, vNome, vModelo, vAno, kmAquisicao, dataAquisicao,
-            kmBase: kmAquisicao,
-            dataBase: new Date().toISOString().slice(0,16), 
+            kmBase: kmAquisicao, dataBase: new Date().toISOString().slice(0,16), 
             kmDia: 30, horaAtualizacao: "19:00", diasSemana: [1,2,3,4,5]
         });
         db.ativo = novoId;
@@ -573,46 +606,31 @@ function iniciarEditarVeiculo(id) {
     document.getElementById('btnSalvarVeiculo').innerHTML = "<i class='fas fa-check'></i> Atualizar Veículo";
     document.getElementById('btnSalvarVeiculo').className = "btn btn-success";
     document.getElementById('btnCancelarEdicao').style.display = "block";
-    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function excluirVeiculo(id) {
-    if(db.veiculos.length <= 1) {
-        alert("Impossível apagar o último veículo remanescente!");
-        return;
-    }
-    if(confirm("Confirma a remoção definitiva deste veículo e históricos?")) {
+    if(db.veiculos.length <= 1) { return alert("Impossível apagar o último veículo!"); }
+    if(confirm("Confirma a remoção definitiva deste veículo?")) {
         db.abastecimentos = db.abastecimentos.filter(a => a.veiculoId !== id);
         db.manutencoes = db.manutencoes.filter(m => m.veiculoId !== id);
         db.veiculos = db.veiculos.filter(v => v.id !== id);
-        
-        if(db.ativo === id) {
-            db.ativo = db.veiculos[0].id;
-        }
+        if(db.ativo === id) db.ativo = db.veiculos[0].id;
 
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-        limparFormVeiculo();
-        renderVeiculos();
-        sincronizarSeletorGlobal();
-        atualizarPainel();
+        limparFormVeiculo(); renderVeiculos(); sincronizarSeletorGlobal(); atualizarPainel();
     }
 }
 
 function selecionarVeiculoAtivo(id) {
     db.ativo = id;
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-    renderVeiculos();
-    sincronizarSeletorGlobal();
-    atualizarPainel();
+    renderVeiculos(); sincronizarSeletorGlobal(); atualizarPainel();
 }
 
 function limparFormVeiculo() {
-    document.getElementById('vId').value = "";
-    document.getElementById('vNome').value = "";
-    document.getElementById('vAno').value = "";
-    document.getElementById('vKmAquisicao').value = "";
-    document.getElementById('vDataAquisicao').value = "";
+    document.getElementById('vId').value = ""; document.getElementById('vNome').value = ""; document.getElementById('vAno').value = "";
+    document.getElementById('vKmAquisicao').value = ""; document.getElementById('vDataAquisicao').value = "";
     document.getElementById('tituloGerenciarVeiculo').textContent = "Cadastrar Novo Veículo";
     document.getElementById('btnSalvarVeiculo').innerHTML = "<i class='fas fa-plus'></i> Salvar Veículo";
     document.getElementById('btnSalvarVeiculo').className = "btn";
@@ -625,7 +643,7 @@ function renderVeiculos() {
         <div class="item-lista" style="${v.id === db.ativo ? 'border-left: 4px solid var(--primary); padding-left:8px; background: rgba(37,99,235,0.04);' : ''}">
             <div onclick="selecionarVeiculoAtivo('${v.id}')" style="cursor:pointer; flex-grow:1;">
                 <i class="fas ${v.vModelo==='Moto'?'fa-motorcycle':'fa-car'}" style="margin-right:8px; color:${v.id === db.ativo ? 'var(--primary)':'var(--muted)'}"></i>
-                <strong>${v.vNome} (${v.vAno || '---'})</strong><br>
+                <strong>${v.vNome}</strong><br>
                 <span class="muted" style="font-size:12px;">Aquisição: ${v.kmAquisicao?.toLocaleString('pt-BR') || 0} km</span>
             </div>
             <div class="item-lista-botoes">
@@ -636,7 +654,7 @@ function renderVeiculos() {
     `).join('');
 }
 
-// ================= GESTÃO DO ODOMETRO VIRTUAL =================
+// ================= REGRAS ODÔMETRO VIRTUAL =================
 function carregarCamposConfigAtivo() {
     let v = obterVeiculoAtivo();
     document.getElementById('kmBase').value = v.kmBase || '';
@@ -707,7 +725,7 @@ function atualizarPainel() {
     document.getElementById('proxTrocaOleo').textContent = kmProxOleo > 0 ? kmProxOleo.toLocaleString('pt-BR') + ' km' : "---";
     
     const faltamKm = kmProxOleo - kmVirtual;
-    document.getElementById('faltaOleo').textContent = kmProxOleo > 0 ? (faltamKm > 0 ? `Faltam ${faltamKm.toLocaleString('pt-BR')} km` : 'Troca Vencida!') : 'Troca de óleo pendente';
+    document.getElementById('faltaOleo').textContent = kmProxOleo > 0 ? (faltamKm > 0 ? `Faltam ${faltamKm.toLocaleString('pt-BR')} km` : 'Troca Vencida!') : 'Troca pendente';
 
     let totalKm = 0, totalL = 0;
     for(let i = 1; i < absDoVeiculo.length; i++) {
@@ -725,7 +743,6 @@ function atualizarPainel() {
     document.getElementById('autonomia').textContent = media > 0 ? `${autonomiaKm}km ~ ${autonomiaDias} dias` : "---";
 
     document.getElementById('proxAtualizacao').textContent = `Atualiza hoje ${vAtivo.horaAtualizacao || '19:00'}`;
-
     renderGraficoConsumo(absDoVeiculo);
 }
 
@@ -739,9 +756,7 @@ function addAbast() {
     const total = parseFloat(document.getElementById('aTotal').value);
     const tipo = document.getElementById('aTipo').value;
 
-    if (!data || !km || !litros || !total) {
-        alert('Por favor, informe os dados obrigatórios do abastecimento.'); return;
-    }
+    if (!data || !km || !litros || !total) { return alert('Preencha os campos obrigatórios.'); }
 
     if (!id) {
         const kmVirtual = calcularOdometroVirtual();
@@ -753,48 +768,35 @@ function addAbast() {
         db.abastecimentos.push({ id: Date.now(), veiculoId: db.ativo, data, km, litros, valorL, total, tipo });
     } else {
         let idx = db.abastecimentos.findIndex(a => a.id == id);
-        if (idx !== -1) {
-            db.abastecimentos[idx] = { id: Number(id), veiculoId: db.ativo, data, km, litros, valorL, total, tipo };
-        }
+        if (idx !== -1) db.abastecimentos[idx] = { id: Number(id), veiculoId: db.ativo, data, km, litros, valorL, total, tipo };
     }
 
     db.abastecimentos.sort((a,b) => new Date(a.data) - new Date(b.data));
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
     
-    limparFormAbast();
-    renderAbast();
-    atualizarPainel();
+    limparFormAbast(); renderAbast(); atualizarPainel();
 }
 
 function iniciarEditarAbast(id) {
-    let a = db.abastecimentos.find(ab => ab.id == id);
-    if (!a) return;
-
-    document.getElementById('aId').value = a.id;
-    document.getElementById('aData').value = a.data;
-    document.getElementById('aKm').value = a.km;
-    document.getElementById('aLitros').value = a.litros;
-    document.getElementById('aValorL').value = a.valorL;
-    document.getElementById('aTotal').value = a.total;
+    let a = db.abastecimentos.find(ab => ab.id == id); if (!a) return;
+    document.getElementById('aId').value = a.id; document.getElementById('aData').value = a.data;
+    document.getElementById('aKm').value = a.km; document.getElementById('aLitros').value = a.litros;
+    document.getElementById('aValorL').value = a.valorL; document.getElementById('aTotal').value = a.total;
     document.getElementById('aTipo').value = a.tipo;
 
     document.getElementById('tituloFormAbast').textContent = "Editar Abastecimento";
     document.getElementById('btnSalvarAbast').textContent = "Atualizar Abastecimento";
     document.getElementById('btnSalvarAbast').className = "btn btn-success";
     document.getElementById('btnCancelarAbast').style.display = "block";
-    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function limparFormAbast() {
-    document.getElementById('aId').value = "";
-    document.getElementById('aData').value = new Date().toISOString().slice(0,10);
-    document.getElementById('aLitros').value = '';
-    document.getElementById('aValorL').value = '';
-    document.getElementById('aTotal').value = '';
-    document.getElementById('aKm').value = calcularOdometroVirtual();
-    document.getElementById('nfeChave').value = "";
+    document.getElementById('aId').value = ""; document.getElementById('aData').value = new Date().toISOString().slice(0,10);
+    document.getElementById('aLitros').value = ''; document.getElementById('aValorL').value = ''; document.getElementById('aTotal').value = '';
+    document.getElementById('aKm').value = calcularOdometroVirtual(); document.getElementById('nfeChave').value = "";
     document.getElementById('nfeActions').style.display = 'none';
+    document.getElementById('labelFotoQr').innerHTML = `<i class="fas fa-camera"></i> Tirar Foto QR`;
     document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-file-code" style="color:var(--primary); margin-right:6px"></i>Selecionar arquivo .XML`;
     
     document.getElementById('tituloFormAbast').textContent = "Novo Abastecimento";
@@ -810,7 +812,7 @@ function renderAbast() {
     
     div.innerHTML = absDoVeiculo.slice().reverse().map(a => `
         <div class="item-lista">
-            <div><b>${a.km.toLocaleString('pt-BR')} km</b> - ${a.litros}L (R$ ${a.total.toFixed(2)}) <br><span class="muted">${a.data.split('-').reverse().join('/')} • ${a.tipo}</span></div>
+            <div><b>${a.km.toLocaleString('pt-BR')} km</b> - ${a.litros}L (R$ ${a.total.toFixed(2)}) <br><span class="muted">${a.data.split('-').reverse().join('/')}</span></div>
             <div class="item-lista-botoes">
                 <button onclick="iniciarEditarAbast(${a.id})" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
                 <button onclick="delAbast(${a.id})" style="color:var(--danger);"><i class="fas fa-trash"></i></button>
@@ -823,23 +825,19 @@ function delAbast(id) {
     if(confirm("Deseja apagar este registro?")) {
         db.abastecimentos = db.abastecimentos.filter(a => a.id !== id);
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-        renderAbast();
-        atualizarPainel();
+        renderAbast(); atualizarPainel();
     }
 }
 
-// ================= CRUD MANUTENÇÕES + ARQUIVOS =================
+// ================= CRUD MANUTENÇÕES =================
 function processarPdf(input) {
     const file = input.files[0];
     if (file) {
-        if (file.size > 1.5 * 1024 * 1024) { 
-            alert("O arquivo excede o limite máximo permitido de 1.5MB.");
-            input.value = ""; return;
-        }
+        if (file.size > 1.5 * 1024 * 1024) { return alert("Arquivo excede 1.5MB."); }
         const reader = new FileReader();
         reader.onload = function (e) {
             base64PdfTemporario = e.target.result;
-            document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-check-circle" style="color:green; margin-right:6px"></i>Ordem de Serviço Anexada!`;
+            document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> Anexado!`;
         };
         reader.readAsDataURL(file);
     }
@@ -850,75 +848,50 @@ function abrirPdfJanela(base64Data) {
         const parts = base64Data.split(';base64,');
         const contentType = parts[0].split(':')[1];
         const raw = window.atob(parts[1]);
-        const rawLength = raw.length;
-        const uInt8Array = new Uint8Array(rawLength);
-        for (let i = 0; i < rawLength; ++i) uInt8Array[i] = raw.charCodeAt(i);
-        const blob = new Blob([uInt8Array], { type: contentType });
-        window.open(URL.createObjectURL(blob), '_blank');
-    } catch(e) { alert("Erro ao abrir arquivo binário PDF."); }
+        const uInt8Array = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; ++i) uInt8Array[i] = raw.charCodeAt(i);
+        window.open(URL.createObjectURL(new Blob([uInt8Array], { type: contentType })), '_blank');
+    } catch(e) { alert("Erro ao carregar PDF."); }
 }
 
 function addManut() {
-    const id = document.getElementById('mId').value;
-    const data = document.getElementById('mData').value;
-    const km = parseInt(document.getElementById('mKm').value);
-    const tipo = document.getElementById('mTipo').value;
-    const valor = parseFloat(document.getElementById('mValor').value) || 0;
-    const proxKm = parseInt(document.getElementById('mProxKm').value) || 0;
+    const id = document.getElementById('mId').value; const data = document.getElementById('mData').value;
+    const km = parseInt(document.getElementById('mKm').value); const tipo = document.getElementById('mTipo').value;
+    const valor = parseFloat(document.getElementById('mValor').value) || 0; const proxKm = parseInt(document.getElementById('mProxKm').value) || 0;
     
-    if (!data || !km || !tipo) { alert('Preencha os campos obrigatórios.'); return; }
+    if (!data || !km || !tipo) { return alert('Preencha os campos obrigatórios.'); }
     
     if (!id) {
         db.manutencoes.push({ id: Date.now(), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: base64PdfTemporario });
     } else {
         let idx = db.manutencoes.findIndex(m => m.id == id);
-        if (idx !== -1) {
-            let pdfExistente = base64PdfTemporario || db.manutencoes[idx].pdf || "";
-            db.manutencoes[idx] = { id: Number(id), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: pdfExistente };
-        }
+        if (idx !== -1) db.manutencoes[idx] = { id: Number(id), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: base64PdfTemporario || db.manutencoes[idx].pdf };
     }
 
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-    limparFormManut();
-    renderManut(); 
-    atualizarPainel();
+    limparFormManut(); renderManut(); atualizarPainel();
 }
 
 function iniciarEditarManut(id) {
-    let m = db.manutencoes.find(ma => ma.id == id);
-    if (!m) return;
-
-    document.getElementById('mId').value = m.id;
-    document.getElementById('mData').value = m.data;
-    document.getElementById('mKm').value = m.km;
-    document.getElementById('mTipo').value = m.tipo;
-    document.getElementById('mValor').value = m.valor;
-    document.getElementById('mProxKm').value = m.proxKm;
+    let m = db.manutencoes.find(ma => ma.id == id); if (!m) return;
+    document.getElementById('mId').value = m.id; document.getElementById('mData').value = m.data;
+    document.getElementById('mKm').value = m.km; document.getElementById('mTipo').value = m.tipo;
+    document.getElementById('mValor').value = m.valor; document.getElementById('mProxKm').value = m.proxKm;
     base64PdfTemporario = ""; 
 
-    if (m.pdf) {
-        document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:green; margin-right:6px"></i>Possui PDF (Clique p/ alterar)`;
-    } else {
-        document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:red; margin-right:6px"></i>Anexar PDF da Ordem de Serviço`;
-    }
-
+    document.getElementById('labelPdfText').innerHTML = m.pdf ? `Possui PDF (Clique p/ alterar)` : `Anexar PDF da Ordem de Serviço`;
     document.getElementById('tituloFormManut').textContent = "Editar Registro de Manutenção";
     document.getElementById('btnSalvarManut').textContent = "Atualizar Manutenção";
     document.getElementById('btnSalvarManut').className = "btn btn-success";
     document.getElementById('btnCancelarManut').style.display = "block";
-    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function limparFormManut() {
-    document.getElementById('mId').value = "";
-    document.getElementById('mData').value = new Date().toISOString().slice(0,10);
-    document.getElementById('mKm').value = '';
-    document.getElementById('mTipo').value = '';
-    document.getElementById('mValor').value = '';
-    document.getElementById('mProxKm').value = '';
-    base64PdfTemporario = "";
-    document.getElementById('mPdf').value = "";
+    document.getElementById('mId').value = ""; document.getElementById('mData').value = new Date().toISOString().slice(0,10);
+    document.getElementById('mKm').value = ''; document.getElementById('mTipo').value = '';
+    document.getElementById('mValor').value = ''; document.getElementById('mProxKm').value = '';
+    base64PdfTemporario = ""; document.getElementById('mPdf').value = "";
     document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:red; margin-right:6px"></i>Anexar PDF da Ordem de Serviço`;
 
     document.getElementById('tituloFormManut').textContent = "Adicionar Manutenção";
@@ -937,7 +910,7 @@ function renderManut() {
             <div>
                 <b>${m.tipo}</b> - ${m.km.toLocaleString('pt-BR')} km <br>
                 <span class="muted">R$ ${m.valor.toFixed(2)} • ${m.data.split('-').reverse().join('/')}</span>
-                ${m.pdf ? `<br><button onclick="abrirPdfJanela('${m.pdf}')" style="background:none; border:none; color:var(--primary); font-size:13px; cursor:pointer; text-align:left; width:auto; padding:0; margin-top:6px; font-weight:700;"><i class="fas fa-eye"></i> Visualizar O.S. (PDF)</button>` : ''}
+                ${m.pdf ? `<br><button onclick="abrirPdfJanela('${m.pdf}')" style="background:none; border:none; color:var(--primary); font-size:13px; cursor:pointer; padding:0; margin-top:6px; font-weight:700;"><i class="fas fa-eye"></i> Visualizar PDF</button>` : ''}
             </div>
             <div class="item-lista-botoes">
                 <button onclick="iniciarEditarManut(${m.id})" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
@@ -951,12 +924,11 @@ function delManut(id) {
     if(confirm('Remover esta manutenção?')) {
         db.manutencoes = db.manutencoes.filter(m => m.id !== id);
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
-        renderManut();
-        atualizarPainel();
+        renderManut(); atualizarPainel();
     }
 }
 
-// ================= GRÁFICO DE CONSUMO =================
+// ================= GRÁFICO =================
 function renderGraficoConsumo(absDoVeiculo){
   const c = document.getElementById('graficoConsumo'); if(!c) return;
   if(absDoVeiculo.length < 2){ if(grafico) grafico.destroy(); grafico = null; return; }
@@ -966,39 +938,28 @@ function renderGraficoConsumo(absDoVeiculo){
     const k = absDoVeiculo[i].data.slice(0,7);
     const kmRodado = absDoVeiculo[i].km - absDoVeiculo[i-1].km;
     if(kmRodado <= 0 || absDoVeiculo[i].litros <= 0) continue;
-    const v = kmRodado / absDoVeiculo[i].litros;
-    (m[k] ??= []).push(v);
+    (m[k] ??= []).push(kmRodado / absDoVeiculo[i].litros);
   }
   const lab = Object.keys(m).map(x => x.split('-')[1] + '/' + x.split('-')[0]);
   const dat = Object.values(m).map(x => +(x.reduce((a,b) => a+b, 0) / x.length).toFixed(2));
   
-  const ctx = c.getContext('2d');
   if(grafico) grafico.destroy();
-  
-  grafico = new Chart(ctx, {
+  grafico = new Chart(c.getContext('2d'), {
     type: 'bar',
-    data: {
-      labels: lab,
-      datasets: [{ data: dat, backgroundColor: '#3b82f6' }]
-    },
+    data: { labels: lab, datasets: [{ data: dat, backgroundColor: '#3b82f6' }] },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 }
 
 function limparTudo() {
-    if(confirm('Tem certeza que deseja redefinir o app?')) {
-        localStorage.clear();
-        location.reload();
-    }
+    if(confirm('Tem certeza que deseja redefinir o app?')) { localStorage.clear(); location.reload(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     if(localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
     document.getElementById('aData').value = new Date().toISOString().slice(0,10);
     document.getElementById('mData').value = new Date().toISOString().slice(0,10);
-    
-    sincronizarSeletorGlobal();
-    atualizarPainel();
+    sincronizarSeletorGlobal(); atualizarPainel();
     setInterval(atualizarPainel, 60000);
 });
 </script>
