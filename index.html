@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FuelTrack Lead</title>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRnVlbFRyYWNrIiwic2hvcnRfbmFtZSI6IkZ1ZWwiLCJzdGFydF91cmwiOiIuIiwiaGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBmMTIxMyIsInRoZW1lX2NvbG9yIjoiIzI1NjNlYiJ9">
+<!-- Scripts necessários: Gráfico e Leitor de QR Code de alta performance -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
 :root {
@@ -59,6 +61,10 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
 .item-lista { border-bottom: 1px solid var(--border); padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
 .item-lista-botoes { display: flex; gap: 4px; }
 .item-lista-botoes button { width: auto; background: none; border: none; cursor: pointer; padding: 6px; font-size: 16px; }
+
+/* Estilos do Scanner de Câmera */
+#scanner-container { display: none; margin-top: 10px; border: 2px solid var(--primary); border-radius: 12px; overflow: hidden; background: #000; position: relative; }
+#reader { width: 100%; min-height: 250px; }
 </style>
 </head>
 <body>
@@ -71,6 +77,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         <select id="seletorVeiculoGlobal" onchange="selecionarVeiculoAtivo(this.value)"></select>
     </div>
 
+    <!-- PAINEL -->
     <div id="painel" class="tab-content active">
         <div class="card odometro-destaque">
             <div style="display:flex; justify-content:space-between; align-items:center">
@@ -119,18 +126,39 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- ABASTECER -->
     <div id="abastecer" class="tab-content">
         <div class="card" style="border: 2px dashed var(--primary); background: rgba(37,99,235,0.02)">
-            <h3><i class="fas fa-file-invoice-dollar"></i> Importar Nota Fiscal (NF-e)</h3>
-            <p class="muted" style="margin-bottom: 8px;">Carregue o arquivo .xml da nota fiscal para preenchimento automático.</p>
+            <h3><i class="fas fa-qrcode"></i> Escanear QR Code da Nota Fiscal</h3>
+            <p class="muted" style="margin-bottom: 8px;">Use a câmera para ler a Chave de Acesso direto do cupom fiscal do posto.</p>
+            
             <div class="grid-2">
-                <div class="file-input-wrapper">
-                    <label class="file-input-label" for="fileNfe" id="labelNfeText">
-                        <i class="fas fa-qrcode" style="color:var(--primary); margin-right:6px"></i>Selecionar XML da NF-e
-                    </label>
-                    <input id="fileNfe" type="file" accept=".xml" style="display:none" onchange="processarXmlNfe(this)">
+                <button class="btn" onclick="iniciarScannerQrCode()"><i class="fas fa-camera"></i> Abrir Câmera</button>
+                <button class="btn" style="background: var(--muted); font-size:12px;" onclick="pararScannerQrCode()">Fechar Câmera</button>
+            </div>
+
+            <!-- Container da Câmera -->
+            <div id="scanner-container">
+                <div id="reader"></div>
+            </div>
+
+            <div style="margin-top:12px;">
+                <input id="nfeChave" type="text" placeholder="Chave de Acesso detectada aparecerá aqui" readonly style="font-size:13px; text-align:center;">
+                <div id="nfeActions" style="display:none; margin-top: 8px; text-align:center;">
+                    <p class="muted" style="color:var(--success); font-weight:700;"><i class="fas fa-check"></i> Chave Copiada!</p>
+                    <button class="btn-nav" style="color:var(--primary); text-decoration:underline; font-size:13px; margin: 4px auto;" onclick="window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank')">
+                        Clique aqui para ir ao Portal Nacional da NF-e baixar o XML
+                    </button>
                 </div>
-                <button class="btn" style="background: var(--muted); font-size:12px; height:45px;" onclick="simularLeituraNfe()">Simular NF-e</button>
+            </div>
+
+            <hr style="border:0; border-top:1px solid var(--border); margin:12px 0;">
+            <p class="muted">Já tem o arquivo .xml da nota? Importe abaixo:</p>
+            <div class="file-input-wrapper">
+                <label class="file-input-label" for="fileNfe" id="labelNfeText">
+                    <i class="fas fa-file-code" style="color:var(--primary); margin-right:6px"></i>Selecionar arquivo .XML
+                </label>
+                <input id="fileNfe" type="file" accept=".xml" style="display:none" onchange="processarXmlNfe(this)">
             </div>
         </div>
 
@@ -161,6 +189,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- MANUTENÇÃO -->
     <div id="manutencao" class="tab-content">
         <div class="card">
             <h3 id="tituloFormManut">Adicionar Manutenção</h3>
@@ -189,6 +218,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- MENU VEÍCULOS -->
     <div id="veiculosTab" class="tab-content">
         <div class="card">
             <h3 id="tituloGerenciarVeiculo">Cadastrar Novo Veículo</h3>
@@ -226,6 +256,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- CONFIG -->
     <div id="config" class="tab-content">
         <div class="card">
             <h3>Regras do Odômetro Virtual</h3>
@@ -286,6 +317,7 @@ if (!db.veiculos || db.veiculos.length === 0) {
 
 let grafico = null;
 let base64PdfTemporario = "";
+let html5QrcodeScanner = null;
 
 function showTab(id) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -296,6 +328,7 @@ function showTab(id) {
     const correspondente = botoesNav.find(b => b.getAttribute('onclick').includes(`'${id}'`));
     if(correspondente) correspondente.classList.add('active');
 
+    pararScannerQrCode(); // Evita câmera aberta em segundo plano ao mudar de aba
     if(id === 'abastecer') { limparFormAbast(); renderAbast(); }
     if(id === 'manutencao') { limparFormManut(); renderManut(); }
     if(id === 'veiculosTab') { limparFormVeiculo(); renderVeiculos(); }
@@ -336,7 +369,60 @@ function calcularCombustivel(origem) {
     }
 }
 
-// ================= LEITURA DE NOTA FISCAL (XML) =================
+// ================= SISTEMA NATIVO DE SCANNER DE QR CODE =================
+function iniciarScannerQrCode() {
+    document.getElementById('scanner-container').style.display = 'block';
+    document.getElementById('nfeActions').style.display = 'none';
+    
+    html5QrcodeScanner = new Html5Qrcode("reader");
+    
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    
+    // Inicia usando a câmera traseira do celular
+    html5QrcodeScanner.start(
+        { facingMode: "environment" }, 
+        config,
+        (decodedText) => {
+            // Sucesso na leitura do código
+            pararScannerQrCode();
+            
+            // Tenta extrair a chave de acesso de 44 dígitos contida na URL do QR Code
+            const regexChave = /\d{44}/;
+            const match = decodedText.match(regexChave);
+            
+            if (match && match[0]) {
+                const chave = match[0];
+                document.getElementById('nfeChave').value = chave;
+                navigator.clipboard.writeText(chave); // Copia automaticamente para a memória
+                
+                document.getElementById('nfeActions').style.display = 'block';
+                alert("QR Code Lido! A chave de acesso foi copiada. Use o link abaixo para obter o arquivo XML.");
+            } else {
+                document.getElementById('nfeChave').value = "QR Code lido, mas chave não encontrada.";
+                alert("Lemos o código, mas não achamos o padrão de 44 números da Nota Fiscal.");
+            }
+        },
+        (errorMessage) => {
+            // Log silencioso para evitar travamentos durante a busca de foco
+        }
+    ).catch(err => {
+        alert("Erro ao acessar a câmera. Verifique as permissões do seu navegador.");
+        document.getElementById('scanner-container').style.display = 'none';
+    });
+}
+
+function pararScannerQrCode() {
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+            document.getElementById('scanner-container').style.display = 'none';
+            html5QrcodeScanner = null;
+        }).catch(err => {
+            document.getElementById('scanner-container').style.display = 'none';
+        });
+    }
+}
+
+// Processamento do arquivo XML obtido na Sefaz
 function processarXmlNfe(input) {
     const file = input.files[0];
     if (file) {
@@ -346,7 +432,6 @@ function processarXmlNfe(input) {
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(e.target.result, "text/xml");
                 
-                // Padrão SEFAZ para Quantidade e Valor Unitário / Total do item
                 const qComTag = xmlDoc.getElementsByTagName("qCom")[0];
                 const vUnComTag = xmlDoc.getElementsByTagName("vUnCom")[0];
                 const vProdTag = xmlDoc.getElementsByTagName("vProd")[0];
@@ -360,25 +445,17 @@ function processarXmlNfe(input) {
                     document.getElementById('aValorL').value = valorL.toFixed(2);
                     document.getElementById('aTotal').value = total.toFixed(2);
                     
-                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> NF Importada!`;
-                    alert("Dados da nota importados com sucesso! Agora preencha apenas o Km atual.");
+                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Importado com sucesso!`;
+                    alert("Valores carregados! Digite o Km atual para salvar.");
                 } else {
-                    alert("Não encontramos os campos de quantidade e valor no XML carregado. Verifique se é uma NF-e de combustível válida.");
+                    alert("Dados não encontrados no arquivo XML. Verifique se é uma NF-e de combustível.");
                 }
             } catch (err) {
-                alert("Erro ao ler o arquivo XML.");
+                alert("Erro ao processar arquivo XML.");
             }
         };
         reader.readAsText(file);
     }
-}
-
-function simularLeituraNfe() {
-    // Valores de teste para o usuário validar o funcionamento
-    document.getElementById('aLitros').value = "12.54";
-    document.getElementById('aValorL').value = "5.59";
-    document.getElementById('aTotal').value = "70.10";
-    alert("Simulação Concluída! Injetados 12,54 Litros a R$ 5,59. Digite apenas o Km para salvar.");
 }
 
 // ================= CRUD VEÍCULOS UNIFICADO =================
@@ -652,8 +729,9 @@ function limparFormAbast() {
     document.getElementById('aValorL').value = '';
     document.getElementById('aTotal').value = '';
     document.getElementById('aKm').value = calcularOdometroVirtual();
-    document.getElementById('fileNfe').value = "";
-    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-qrcode" style="color:var(--primary); margin-right:6px"></i>Selecionar XML da NF-e`;
+    document.getElementById('nfeChave').value = "";
+    document.getElementById('nfeActions').style.display = 'none';
+    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-file-code" style="color:var(--primary); margin-right:6px"></i>Selecionar arquivo .XML`;
     
     document.getElementById('tituloFormAbast').textContent = "Novo Abastecimento";
     document.getElementById('btnSalvarAbast').textContent = "Salvar Abastecimento";
@@ -703,7 +781,6 @@ function processarPdf(input) {
     }
 }
 
-// SISTEMA SEGURO DE VISUALIZAÇÃO VIA BLOB NATIVO (Ignora bloqueios de segurança móvel)
 function abrirPdfJanela(base64Data) {
     try {
         const parts = base64Data.split(';base64,');
@@ -720,7 +797,7 @@ function abrirPdfJanela(base64Data) {
         const blobUrl = URL.createObjectURL(blob);
         window.open(blobUrl, '_blank');
     } catch(e) {
-        alert("Erro ao renderizar o PDF. Certifique-se de que é um arquivo válido.");
+        alert("Erro ao renderizar o PDF.");
     }
 }
 
@@ -796,7 +873,7 @@ function limparFormManut() {
 function renderManut() {
     const div = document.getElementById('listaManut');
     const manutDoVeiculo = db.manutencoes.filter(m => m.veiculoId === db.ativo);
-    if(!manutDoVeiculo.length) { div.innerHTML = '<p class="muted">Nenhuma manutenção registrada para este veículo.</p>'; return; }
+    if(!manutDoVeiculo.length) { div.innerHTML = '<p class="muted">Nenhuma manutenção registrada.</p>'; return; }
     
     div.innerHTML = manutDoVeiculo.slice().reverse().map(m => `
         <div class="item-lista">
@@ -852,7 +929,7 @@ function renderGraficoConsumo(absDoVeiculo){
 }
 
 function limparTudo() {
-    if(confirm('Tem certeza que deseja redefinir o aplicativo por completo? Todos os dados serão zerados.')) {
+    if(confirm('Tem certeza que deseja redefinir o aplicativo por completo?')) {
         localStorage.clear();
         location.reload();
     }
