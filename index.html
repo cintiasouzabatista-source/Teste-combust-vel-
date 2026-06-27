@@ -34,9 +34,9 @@ input, select, button { width: 100%; padding: 12px; border-radius: 10px; border:
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0; z-index: 10; }
-.btn-nav { background: none; border: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; width: auto; padding: 4px; }
+.btn-nav { background: none; border: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; width: auto; padding: 4px; }
 .btn-nav.active { color: var(--primary); }
-.btn-nav i { font-size: 20px; }
+.btn-nav i { font-size: 18px; }
 
 .theme-toggle { position: absolute; top: 16px; right: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); z-index: 5; }
 
@@ -171,9 +171,9 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
         </div>
     </div>
 
-    <div id="config" class="tab-content">
+    <div id="veiculosTab" class="tab-content">
         <div class="card">
-            <h3 id="tituloGerenciarVeiculo">Gerenciar Veículos</h3>
+            <h3 id="tituloGerenciarVeiculo">Cadastrar Novo Veículo</h3>
             <input id="vId" type="hidden">
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <input id="vNome" type="text" placeholder="Nome do Veículo (Ex: Titan 160, Civic)">
@@ -184,15 +184,21 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
                     </select>
                     <input id="vAno" type="number" placeholder="Ano">
                 </div>
-                <button class="btn" id="btnSalvarVeiculo" onclick="salvarVeiculo()"><i class="fas fa-plus"></i> Cadastrar / Atualizar Veículo</button>
+                <button class="btn" id="btnSalvarVeiculo" onclick="salvarVeiculo()"><i class="fas fa-plus"></i> Salvar Veículo</button>
                 <button class="btn" id="btnCancelarEdicao" style="background:var(--muted); display:none;" onclick="limparFormVeiculo()">Cancelar Edição</button>
             </div>
-            
-            <div id="listaVeiculos" style="margin-top:16px; border-top:1px solid var(--border);"></div>
         </div>
 
         <div class="card">
-            <h3>Especificações do Veículo Ativo</h3>
+            <h3>Seus Veículos Cadastrados</h3>
+            <p class="muted" style="margin-bottom: 8px;">Clique sobre o veículo para ativá-lo no app.</p>
+            <div id="listaVeiculos"></div>
+        </div>
+    </div>
+
+    <div id="config" class="tab-content">
+        <div class="card">
+            <h3>Especificações de Aquisição</h3>
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <div class="grid-2">
                     <div>
@@ -205,19 +211,21 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
                     </div>
                 </div>
             </div>
+        </div>
 
-            <h3 style="margin-top:16px;">Odômetro Virtual - Config</h3>
+        <div class="card">
+            <h3>Odômetro Virtual - Regras de Cálculo</h3>
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <label class="muted">Ponto de Partida</label>
                 <div class="grid-2">
                     <input id="kmBase" type="number" placeholder="Km inicial" onchange="salvarConfigAvancada()">
                     <input id="dataBase" type="datetime-local" onchange="salvarConfigAvancada()">
                 </div>
-                <label class="muted">Km por dia</label>
+                <label class="muted">Km rodados por dia ativo</label>
                 <input id="kmDia" type="number" value="30" onchange="salvarConfigAvancada()">
-                <label class="muted">Horário da atualização</label>
+                <label class="muted">Horário da virada de lote</label>
                 <input id="horaAtualizacao" type="time" value="19:00" onchange="salvarConfigAvancada()">
-                <label class="muted">Dias que roda</label>
+                <label class="muted">Dias da semana que o veículo roda</label>
                 <div class="dias-semana" id="diasSemana">
                     <button type="button" class="dia-btn" data-dia="0">Dom</button>
                     <button type="button" class="dia-btn" data-dia="1">Seg</button>
@@ -231,7 +239,7 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
         </div>
 
         <div class="card">
-            <button class="btn btn-danger" onclick="limparTudo()">Limpar Todos os Dados</button>
+            <button class="btn btn-danger" onclick="limparTudo()">Limpar Todos os Dados do App</button>
         </div>
     </div>
 </div>
@@ -240,6 +248,7 @@ body.dark #subtituloVeiculo { color: #3b82f6; }
     <button class="btn-nav active" onclick="showTab('painel')"><i class="fas fa-gauge-high"></i><span>Painel</span></button>
     <button class="btn-nav" onclick="showTab('abastecer')"><i class="fas fa-gas-pump"></i><span>Abastecer</span></button>
     <button class="btn-nav" onclick="showTab('manutencao')"><i class="fas fa-wrench"></i><span>Manutenção</span></button>
+    <button class="btn-nav" onclick="showTab('veiculosTab')"><i class="fas fa-motorcycle"></i><span>Veículos</span></button>
     <button class="btn-nav" onclick="showTab('config')"><i class="fas fa-gear"></i><span>Config</span></button>
 </nav>
 
@@ -264,7 +273,9 @@ function showTab(id) {
     document.querySelectorAll('.btn-nav').forEach(b => b.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     
-    if(event && event.target) {
+    if(window.event && window.event.currentTarget) {
+        window.event.currentTarget.classList.add('active');
+    } else if (event && event.target) {
         let btn = event.target.closest('.btn-nav');
         if(btn) btn.classList.add('active');
     }
@@ -277,9 +288,11 @@ function showTab(id) {
         limparFormManut();
         renderManut();
     }
-    if(id === 'config') {
+    if(id === 'veiculosTab') {
         limparFormVeiculo();
         renderVeiculos();
+    }
+    if(id === 'config') {
         carregarCamposConfigAtivo();
     }
     atualizarPainel();
@@ -339,7 +352,6 @@ function salvarVeiculo() {
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
     limparFormVeiculo();
     renderVeiculos();
-    carregarCamposConfigAtivo();
     atualizarPainel();
 }
 
@@ -353,7 +365,7 @@ function iniciarEditarVeiculo(id) {
     document.getElementById('vAno').value = v.vAno;
 
     document.getElementById('tituloGerenciarVeiculo').textContent = "Editar Dados do Veículo";
-    document.getElementById('btnSalvarVeiculo').textContent = "Atualizar Veículo";
+    document.getElementById('btnSalvarVeiculo').innerHTML = "<i class='fas fa-check'></i> Atualizar Veículo";
     document.getElementById('btnSalvarVeiculo').className = "btn btn-success";
     document.getElementById('btnCancelarEdicao').style.display = "block";
     
@@ -377,7 +389,6 @@ function excluirVeiculo(id) {
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
         limparFormVeiculo();
         renderVeiculos();
-        carregarCamposConfigAtivo();
         atualizarPainel();
     }
 }
@@ -386,7 +397,6 @@ function selecionarVeiculoAtivo(id) {
     db.ativo = id;
     localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
     renderVeiculos();
-    carregarCamposConfigAtivo();
     atualizarPainel();
 }
 
@@ -394,8 +404,8 @@ function limparFormVeiculo() {
     document.getElementById('vId').value = "";
     document.getElementById('vNome').value = "";
     document.getElementById('vAno').value = "";
-    document.getElementById('tituloGerenciarVeiculo').textContent = "Gerenciar Veículos";
-    document.getElementById('btnSalvarVeiculo').textContent = "Cadastrar / Atualizar Veículo";
+    document.getElementById('tituloGerenciarVeiculo').textContent = "Cadastrar Novo Veículo";
+    document.getElementById('btnSalvarVeiculo').innerHTML = "<i class='fas fa-plus'></i> Salvar Veículo";
     document.getElementById('btnSalvarVeiculo').className = "btn";
     document.getElementById('btnCancelarEdicao').style.display = "none";
 }
@@ -437,8 +447,9 @@ function renderVeiculos() {
     div.innerHTML = db.veiculos.map(v => `
         <div class="item-lista" style="${v.id === db.ativo ? 'border-left: 4px solid var(--primary); padding-left:8px; background: rgba(37,99,235,0.04);' : ''}">
             <div onclick="selecionarVeiculoAtivo('${v.id}')" style="cursor:pointer; flex-grow:1;">
-                <i class="fas ${v.vModelo==='Moto'?'fa-motorcycle':'fa-car'}" style="margin-right:6px; color:${v.id === db.ativo ? 'var(--primary)':'var(--muted)'}"></i>
+                <i class="fas ${v.vModelo==='Moto'?'fa-motorcycle':'fa-car'}" style="margin-right:8px; color:${v.id === db.ativo ? 'var(--primary)':'var(--muted)'}"></i>
                 <strong>${v.vNome} (${v.vAno || '---'})</strong>
+                ${v.id === db.ativo ? '<span style="font-size:11px; background:var(--primary); color:#fff; padding:2px 6px; border-radius:12px; margin-left:6px;">Ativo</span>' : ''}
             </div>
             <div class="item-lista-botoes">
                 <button onclick="iniciarEditarVeiculo('${v.id}')" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
@@ -665,13 +676,10 @@ function addManut() {
     if (!data || !km || !tipo) { alert('Preencha data, km e o tipo do serviço.'); return; }
     
     if (!id) {
-        // Modo Cadastro
         db.manutencoes.push({ id: Date.now(), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: base64PdfTemporario });
     } else {
-        // Modo Edição
         let idx = db.manutencoes.findIndex(m => m.id == id);
         if (idx !== -1) {
-            // Se o usuário não enviou um novo PDF, mantém o PDF antigo do registro
             let pdfExistente = base64PdfTemporario || db.manutencoes[idx].pdf || "";
             db.manutencoes[idx] = { id: Number(id), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: pdfExistente };
         }
@@ -695,7 +703,7 @@ function iniciarEditarManut(id) {
     document.getElementById('mValor').value = m.valor;
     document.getElementById('mProxKm').value = m.proxKm;
     
-    base64PdfTemporario = ""; // Reseta temporário para preservar o antigo caso não mude
+    base64PdfTemporario = ""; 
 
     if (m.pdf) {
         document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-file-pdf" style="color:green; margin-right:6px"></i>Possui PDF (Clique p/ alterar)`;
