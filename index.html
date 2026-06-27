@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FuelTrack Lead</title>
 <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRnVlbFRyYWNrIiwic2hvcnRfbmFtZSI6IkZ1ZWwiLCJzdGFydF91cmwiOiIuIiwiaGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBmMTIxMyIsInRoZW1lX2NvbG9yIjoiIzI1NjNlYiJ9">
-<!-- Scripts necessários: Gráfico e Leitor de QR Code de alta performance -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
 :root {
@@ -62,9 +61,11 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
 .item-lista-botoes { display: flex; gap: 4px; }
 .item-lista-botoes button { width: auto; background: none; border: none; cursor: pointer; padding: 6px; font-size: 16px; }
 
-/* Estilos do Scanner de Câmera */
-#scanner-container { display: none; margin-top: 10px; border: 2px solid var(--primary); border-radius: 12px; overflow: hidden; background: #000; position: relative; }
-#reader { width: 100%; min-height: 250px; }
+/* CSS Da Área de Scanner Local */
+#scanner-preview-container { display: none; margin-top: 12px; position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; border: 2px solid var(--primary); }
+#video-scanner { width: 100%; height: auto; display: block; }
+.scanning-line { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--primary); box-shadow: 0 0 8px var(--primary); animation: scanEffect 2s linear infinite; }
+@keyframes scanEffect { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
 </style>
 </head>
 <body>
@@ -77,7 +78,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         <select id="seletorVeiculoGlobal" onchange="selecionarVeiculoAtivo(this.value)"></select>
     </div>
 
-    <!-- PAINEL -->
     <div id="painel" class="tab-content active">
         <div class="card odometro-destaque">
             <div style="display:flex; justify-content:space-between; align-items:center">
@@ -126,34 +126,34 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- ABASTECER -->
     <div id="abastecer" class="tab-content">
         <div class="card" style="border: 2px dashed var(--primary); background: rgba(37,99,235,0.02)">
-            <h3><i class="fas fa-qrcode"></i> Escanear QR Code da Nota Fiscal</h3>
-            <p class="muted" style="margin-bottom: 8px;">Use a câmera para ler a Chave de Acesso direto do cupom fiscal do posto.</p>
+            <h3><i class="fas fa-qrcode"></i> Ler QR Code do Cupom Fiscal</h3>
+            <p class="muted" style="margin-bottom: 8px;">Aponte para o QR Code quadrado na parte inferior da sua nota fiscal do posto.</p>
             
             <div class="grid-2">
-                <button class="btn" onclick="iniciarScannerQrCode()"><i class="fas fa-camera"></i> Abrir Câmera</button>
-                <button class="btn" style="background: var(--muted); font-size:12px;" onclick="pararScannerQrCode()">Fechar Câmera</button>
+                <button class="btn" onclick="ligarCameraLocal()"><i class="fas fa-camera"></i> Escanear</button>
+                <button class="btn" style="background: var(--muted);" onclick="desligarCameraLocal()">Fechar</button>
             </div>
 
-            <!-- Container da Câmera -->
-            <div id="scanner-container">
-                <div id="reader"></div>
+            <div id="scanner-preview-container">
+                <div class="scanning-line"></div>
+                <video id="video-scanner" playsinline></video>
+                <canvas id="canvas-hidden" style="display:none;"></canvas>
             </div>
 
             <div style="margin-top:12px;">
-                <input id="nfeChave" type="text" placeholder="Chave de Acesso detectada aparecerá aqui" readonly style="font-size:13px; text-align:center;">
+                <input id="nfeChave" type="text" placeholder="Chave de Acesso capturada" readonly style="font-size:13px; text-align:center;">
                 <div id="nfeActions" style="display:none; margin-top: 8px; text-align:center;">
-                    <p class="muted" style="color:var(--success); font-weight:700;"><i class="fas fa-check"></i> Chave Copiada!</p>
-                    <button class="btn-nav" style="color:var(--primary); text-decoration:underline; font-size:13px; margin: 4px auto;" onclick="window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank')">
-                        Clique aqui para ir ao Portal Nacional da NF-e baixar o XML
+                    <p style="color:var(--success); font-weight:700; font-size:14px;"><i class="fas fa-check-circle"></i> Chave Copiada!</p>
+                    <button class="btn" style="background: var(--success); font-size:13px; margin-top:6px;" onclick="window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank')">
+                        Ir para Sefaz baixar o XML da Nota
                     </button>
                 </div>
             </div>
 
             <hr style="border:0; border-top:1px solid var(--border); margin:12px 0;">
-            <p class="muted">Já tem o arquivo .xml da nota? Importe abaixo:</p>
+            <p class="muted">Gere o XML na Sefaz e importe-o aqui para completar litros e valores:</p>
             <div class="file-input-wrapper">
                 <label class="file-input-label" for="fileNfe" id="labelNfeText">
                     <i class="fas fa-file-code" style="color:var(--primary); margin-right:6px"></i>Selecionar arquivo .XML
@@ -189,7 +189,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- MANUTENÇÃO -->
     <div id="manutencao" class="tab-content">
         <div class="card">
             <h3 id="tituloFormManut">Adicionar Manutenção</h3>
@@ -218,7 +217,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- MENU VEÍCULOS -->
     <div id="veiculosTab" class="tab-content">
         <div class="card">
             <h3 id="tituloGerenciarVeiculo">Cadastrar Novo Veículo</h3>
@@ -256,7 +254,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- CONFIG -->
     <div id="config" class="tab-content">
         <div class="card">
             <h3>Regras do Odômetro Virtual</h3>
@@ -317,7 +314,8 @@ if (!db.veiculos || db.veiculos.length === 0) {
 
 let grafico = null;
 let base64PdfTemporario = "";
-let html5QrcodeScanner = null;
+let streamVideoLocal = null;
+let animationFrameScanner = null;
 
 function showTab(id) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -328,7 +326,7 @@ function showTab(id) {
     const correspondente = botoesNav.find(b => b.getAttribute('onclick').includes(`'${id}'`));
     if(correspondente) correspondente.classList.add('active');
 
-    pararScannerQrCode(); // Evita câmera aberta em segundo plano ao mudar de aba
+    desligarCameraLocal(); // Fecha a câmera para economizar bateria se mudar de aba
     if(id === 'abastecer') { limparFormAbast(); renderAbast(); }
     if(id === 'manutencao') { limparFormManut(); renderManut(); }
     if(id === 'veiculosTab') { limparFormVeiculo(); renderVeiculos(); }
@@ -369,60 +367,82 @@ function calcularCombustivel(origem) {
     }
 }
 
-// ================= SISTEMA NATIVO DE SCANNER DE QR CODE =================
-function iniciarScannerQrCode() {
-    document.getElementById('scanner-container').style.display = 'block';
+// ================= PROCESSAMENTO LOCAL DO SCANNER (jsQR) =================
+function ligarCameraLocal() {
+    const video = document.getElementById('video-scanner');
+    const container = document.getElementById('scanner-preview-container');
+    
+    container.style.display = 'block';
     document.getElementById('nfeActions').style.display = 'none';
-    
-    html5QrcodeScanner = new Html5Qrcode("reader");
-    
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-    
-    // Inicia usando a câmera traseira do celular
-    html5QrcodeScanner.start(
-        { facingMode: "environment" }, 
-        config,
-        (decodedText) => {
-            // Sucesso na leitura do código
-            pararScannerQrCode();
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(function(stream) {
+        streamVideoLocal = stream;
+        video.srcObject = stream;
+        video.setAttribute("playsinline", true);
+        video.play();
+        animationFrameScanner = requestAnimationFrame(escanearFrameLocal);
+    })
+    .catch(function(err) {
+        alert("Erro ao abrir a câmera local. Dê permissão de câmera ao seu navegador.");
+        container.style.display = 'none';
+    });
+}
+
+function desligarCameraLocal() {
+    if (animationFrameScanner) cancelAnimationFrame(animationFrameScanner);
+    if (streamVideoLocal) {
+        streamVideoLocal.getTracks().forEach(track => track.stop());
+        streamVideoLocal = null;
+    }
+    document.getElementById('scanner-preview-container').style.display = 'none';
+}
+
+function escanearFrameLocal() {
+    const video = document.getElementById('video-scanner');
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvas = document.getElementById('canvas-hidden');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Faz a decodificação matemática pura do QR Code em milissegundos
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+        });
+        
+        if (code) {
+            // QR Code detectado localmente!
+            desligarCameraLocal();
             
-            // Tenta extrair a chave de acesso de 44 dígitos contida na URL do QR Code
             const regexChave = /\d{44}/;
-            const match = decodedText.match(regexChave);
+            const match = code.data.match(regexChave);
             
             if (match && match[0]) {
                 const chave = match[0];
                 document.getElementById('nfeChave').value = chave;
-                navigator.clipboard.writeText(chave); // Copia automaticamente para a memória
+                
+                // Copia sem precisar interagir
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(chave);
+                }
                 
                 document.getElementById('nfeActions').style.display = 'block';
-                alert("QR Code Lido! A chave de acesso foi copiada. Use o link abaixo para obter o arquivo XML.");
+                return;
             } else {
-                document.getElementById('nfeChave').value = "QR Code lido, mas chave não encontrada.";
-                alert("Lemos o código, mas não achamos o padrão de 44 números da Nota Fiscal.");
+                alert("QR Code detectado, mas não contém uma chave de Nota Fiscal válida.");
             }
-        },
-        (errorMessage) => {
-            // Log silencioso para evitar travamentos durante a busca de foco
         }
-    ).catch(err => {
-        alert("Erro ao acessar a câmera. Verifique as permissões do seu navegador.");
-        document.getElementById('scanner-container').style.display = 'none';
-    });
-}
-
-function pararScannerQrCode() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            document.getElementById('scanner-container').style.display = 'none';
-            html5QrcodeScanner = null;
-        }).catch(err => {
-            document.getElementById('scanner-container').style.display = 'none';
-        });
+    }
+    if (streamVideoLocal) {
+        animationFrameScanner = requestAnimationFrame(escanearFrameLocal);
     }
 }
 
-// Processamento do arquivo XML obtido na Sefaz
 function processarXmlNfe(input) {
     const file = input.files[0];
     if (file) {
@@ -445,13 +465,13 @@ function processarXmlNfe(input) {
                     document.getElementById('aValorL').value = valorL.toFixed(2);
                     document.getElementById('aTotal').value = total.toFixed(2);
                     
-                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Importado com sucesso!`;
-                    alert("Valores carregados! Digite o Km atual para salvar.");
+                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Pronto!`;
+                    alert("Sucesso! Valores carregados do XML. Agora preencha os kms e salve!");
                 } else {
-                    alert("Dados não encontrados no arquivo XML. Verifique se é uma NF-e de combustível.");
+                    alert("Não encontramos os dados de itens combustível neste arquivo XML.");
                 }
             } catch (err) {
-                alert("Erro ao processar arquivo XML.");
+                alert("Erro ao ler arquivo XML.");
             }
         };
         reader.readAsText(file);
@@ -515,10 +535,10 @@ function iniciarEditarVeiculo(id) {
 
 function excluirVeiculo(id) {
     if(db.veiculos.length <= 1) {
-        alert("Você não pode excluir o único veículo restante!");
+        alert("Você não pode excluir o único veículo!");
         return;
     }
-    if(confirm("Deseja apagar este veículo? Todos os abastecimentos e manutenções dele serão excluídos.")) {
+    if(confirm("Deseja apagar este veículo?")) {
         db.abastecimentos = db.abastecimentos.filter(a => a.veiculoId !== id);
         db.manutencoes = db.manutencoes.filter(m => m.veiculoId !== id);
         db.veiculos = db.veiculos.filter(v => v.id !== id);
@@ -572,7 +592,7 @@ function renderVeiculos() {
     `).join('');
 }
 
-// ================= GESTÃO EXCLUSIVA DO ODOMETRO VIRTUAL =================
+// ================= GESTÃO DO ODOMETRO VIRTUAL =================
 function carregarCamposConfigAtivo() {
     let v = obterVeiculoAtivo();
     document.getElementById('kmBase').value = v.kmBase || '';
@@ -643,7 +663,7 @@ function atualizarPainel() {
     document.getElementById('proxTrocaOleo').textContent = kmProxOleo > 0 ? kmProxOleo.toLocaleString('pt-BR') + ' km' : "---";
     
     const faltamKm = kmProxOleo - kmVirtual;
-    document.getElementById('faltaOleo').textContent = kmProxOleo > 0 ? (faltamKm > 0 ? `Faltam ${faltamKm.toLocaleString('pt-BR')} km` : 'Troca Vencida!') : 'Cadastre uma manutenção de óleo';
+    document.getElementById('faltaOleo').textContent = kmProxOleo > 0 ? (faltamKm > 0 ? `Faltam ${faltamKm.toLocaleString('pt-BR')} km` : 'Troca Vencida!') : 'Troca de óleo pendente';
 
     let totalKm = 0, totalL = 0;
     for(let i = 1; i < absDoVeiculo.length; i++) {
@@ -756,7 +776,7 @@ function renderAbast() {
 }
 
 function delAbast(id) {
-    if(confirm("Deseja apagar este registro de abastecimento?")) {
+    if(confirm("Deseja apagar este registro?")) {
         db.abastecimentos = db.abastecimentos.filter(a => a.id !== id);
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
         renderAbast();
@@ -769,7 +789,7 @@ function processarPdf(input) {
     const file = input.files[0];
     if (file) {
         if (file.size > 1.5 * 1024 * 1024) { 
-            alert("Arquivo muito grande! Escolha um PDF de até 1.5MB.");
+            alert("Arquivo muito grande!");
             input.value = ""; return;
         }
         const reader = new FileReader();
@@ -809,7 +829,7 @@ function addManut() {
     const valor = parseFloat(document.getElementById('mValor').value) || 0;
     const proxKm = parseInt(document.getElementById('mProxKm').value) || 0;
     
-    if (!data || !km || !tipo) { alert('Preencha data, km e o tipo do serviço.'); return; }
+    if (!data || !km || !tipo) { alert('Preencha os campos obrigatórios.'); return; }
     
     if (!id) {
         db.manutencoes.push({ id: Date.now(), veiculoId: db.ativo, data, km, tipo, valor, proxKm, pdf: base64PdfTemporario });
@@ -891,7 +911,7 @@ function renderManut() {
 }
 
 function delManut(id) {
-    if(confirm('Remover este registro de manutenção?')) {
+    if(confirm('Remover esta manutenção?')) {
         db.manutencoes = db.manutencoes.filter(m => m.id !== id);
         localStorage.setItem('fueltrack_master_db', JSON.stringify(db));
         renderManut();
@@ -929,7 +949,7 @@ function renderGraficoConsumo(absDoVeiculo){
 }
 
 function limparTudo() {
-    if(confirm('Tem certeza que deseja redefinir o aplicativo por completo?')) {
+    if(confirm('Tem certeza que deseja redefinir o app?')) {
         localStorage.clear();
         location.reload();
     }
