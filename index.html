@@ -55,7 +55,6 @@ input, select, button { width: 100%; padding: 12px; border-radius: 10px; border:
 body.dark input, body.dark select, body.dark .file-input-label { background: #334155; border-color: #475569; color: #f1f5f9; }
 .selector-veiculo-top { margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px; }
 .selector-veiculo-top select { border: 2px solid var(--primary); font-weight: 600; color: var(--primary); background: transparent; }
-body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; background: #1e293b; }
 
 .item-lista { border-bottom: 1px solid var(--border); padding: 12px 0; display: flex; justify-content: space-between; align-items: center; }
 .item-lista-botoes { display: flex; gap: 4px; }
@@ -77,7 +76,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         <select id="seletorVeiculoGlobal" onchange="selecionarVeiculoAtivo(this.value)"></select>
     </div>
 
-    <!-- PAINEL -->
     <div id="painel" class="tab-content active">
         <div class="card odometro-destaque">
             <div style="display:flex; justify-content:space-between; align-items:center">
@@ -126,39 +124,36 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- ABASTECER -->
     <div id="abastecer" class="tab-content">
         <div class="card" style="border: 2px dashed var(--primary); background: rgba(37,99,235,0.02)">
-            <h3><i class="fas fa-qrcode"></i> Cupom Fiscal (NFC-e / NF-e)</h3>
-            <p class="muted" style="margin-bottom: 8px;">Escanear pelo QR Code ou digite a chave de 44 dígitos impressa na nota.</p>
+            <h3><i class="fas fa-qrcode"></i> Cupom Fiscal (NFC-e)</h3>
+            <p class="muted" style="margin-bottom: 8px;">Aponte a câmera para o QR Code ou digite a chave numérica abaixo.</p>
             
             <div class="grid-2">
                 <button class="btn" onclick="ligarCameraLocal()"><i class="fas fa-camera"></i> Escanear</button>
                 <button class="btn" style="background: var(--muted);" onclick="desligarCameraLocal()">Fechar Câmera</button>
             </div>
 
-            <!-- Janela da Câmera -->
             <div id="scanner-preview-container">
                 <div class="scanning-line"></div>
                 <video id="video-scanner" playsinline></video>
                 <canvas id="canvas-hidden" style="display:none;"></canvas>
             </div>
 
-            <!-- CAMPO ADICIONADO PARA ENTRADA MANUAL -->
             <div style="margin-top:12px;">
                 <label class="muted">Chave de Acesso (44 dígitos):</label>
-                <input id="nfeChave" type="number" placeholder="Digite ou cole a chave aqui..." oninput="validarChaveManual(this.value)" style="text-align:center; font-size:14px; letter-spacing: 1px;">
+                <input id="nfeChave" type="text" placeholder="Digite ou cole a chave de 44 números..." oninput="validarChaveManual(this.value)" style="text-align:center; font-size:13px; letter-spacing: 0.5px;">
                 
                 <div id="nfeActions" style="display:none; margin-top: 10px; text-align:center;">
-                    <p style="color:var(--success); font-weight:700; font-size:14px;" id="msgSucessoChave"><i class="fas fa-check-circle"></i> Chave Válida!</p>
+                    <p style="color:var(--success); font-weight:700; font-size:14px;" id="msgSucessoChave"><i class="fas fa-check-circle"></i> Chave Aceita!</p>
                     <button class="btn" style="background: var(--success); font-size:13px; margin-top:6px;" onclick="irParaSefaz()">
-                        Ir para Sefaz baixar o XML da Nota
+                        <i class="fas fa-download"></i> Ir para Sefaz baixar o XML
                     </button>
                 </div>
             </div>
 
             <hr style="border:0; border-top:1px solid var(--border); margin:12px 0;">
-            <p class="muted">Importe o arquivo .XML baixado para autocompletar:</p>
+            <p class="muted">Insira o arquivo .XML caso tenha feito o download:</p>
             <div class="file-input-wrapper">
                 <label class="file-input-label" for="fileNfe" id="labelNfeText">
                     <i class="fas fa-file-code" style="color:var(--primary); margin-right:6px"></i>Selecionar arquivo .XML
@@ -172,7 +167,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
             <input id="aId" type="hidden">
             <div style="display:grid; gap:12px; margin-top:8px;">
                 <input id="aData" type="date">
-                <input id="aKm" type="number" placeholder="Digite apenas o Km atual do odômetro">
+                <input id="aKm" type="number" placeholder="Km atual do odômetro">
                 <div class="grid-2">
                     <input id="aLitros" type="number" step="0.01" placeholder="Litros" oninput="calcularCombustivel('litros')">
                     <input id="aValorL" type="number" step="0.01" placeholder="R$ / L" oninput="calcularCombustivel('valorL')">
@@ -194,7 +189,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- MANUTENÇÃO -->
     <div id="manutencao" class="tab-content">
         <div class="card">
             <h3 id="tituloFormManut">Adicionar Manutenção</h3>
@@ -223,7 +217,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- MENU VEÍCULOS -->
     <div id="veiculosTab" class="tab-content">
         <div class="card">
             <h3 id="tituloGerenciarVeiculo">Cadastrar Novo Veículo</h3>
@@ -261,7 +254,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
-    <!-- CONFIG -->
     <div id="config" class="tab-content">
         <div class="card">
             <h3>Regras do Odômetro Virtual</h3>
@@ -375,15 +367,20 @@ function calcularCombustivel(origem) {
     }
 }
 
-// ================= VALIDAÇÃO MANUAL E COMPORTAMENTO =================
+// ================= VALIDAÇÃO MANUAL MELHORADA =================
 function validarChaveManual(valor) {
+    // Remove espaços, traços e letras que o usuário possa colar junto
     const limpo = valor.replace(/\D/g, ''); 
     const actions = document.getElementById('nfeActions');
     const msg = document.getElementById('msgSucessoChave');
 
     if (limpo.length === 44) {
-        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave informada manualmente!`;
+        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave Válida (44 números)!`;
         actions.style.display = 'block';
+        
+        // Sincroniza o valor limpo sem espaços de volta no input
+        document.getElementById('nfeChave').value = limpo;
+
         if (navigator.clipboard) {
             navigator.clipboard.writeText(limpo);
         }
@@ -413,7 +410,7 @@ function ligarCameraLocal() {
         animationFrameScanner = requestAnimationFrame(escanearFrameLocal);
     })
     .catch(function(err) {
-        alert("Erro ao abrir a câmera local. Dê permissão ao navegador.");
+        alert("Erro ao abrir a câmera local. Verifique as permissões de privacidade.");
         container.style.display = 'none';
     });
 }
@@ -441,22 +438,15 @@ function escanearFrameLocal() {
         const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
         
         if (code) {
-            desligarCameraLocal();
             const regexChave = /\d{44}/;
             const match = code.data.match(regexChave);
             
             if (match && match[0]) {
+                desligarCameraLocal();
                 const chave = match[0];
                 document.getElementById('nfeChave').value = chave;
-                document.getElementById('msgSucessoChave').innerHTML = `<i class="fas fa-check-circle"></i> Chave Copiada via QR Code!`;
-                
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(chave);
-                }
-                document.getElementById('nfeActions').style.display = 'block';
+                validarChaveManual(chave);
                 return;
-            } else {
-                alert("QR Code lido, mas não contém uma chave de 44 dígitos.");
             }
         }
     }
@@ -487,13 +477,13 @@ function processarXmlNfe(input) {
                     document.getElementById('aValorL').value = valorL.toFixed(2);
                     document.getElementById('aTotal').value = total.toFixed(2);
                     
-                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Pronto!`;
-                    alert("Dados do XML importados com sucesso!");
+                    document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Importado!`;
+                    alert("Dados carregados com sucesso!");
                 } else {
-                    alert("Dados do combustível não encontrados no XML.");
+                    alert("A estrutura deste XML não corresponde a um cupom de combustível reconhecido.");
                 }
             } catch (err) {
-                alert("Erro ao ler arquivo XML.");
+                alert("Erro crítico na leitura do arquivo XML.");
             }
         };
         reader.readAsText(file);
@@ -557,10 +547,10 @@ function iniciarEditarVeiculo(id) {
 
 function excluirVeiculo(id) {
     if(db.veiculos.length <= 1) {
-        alert("Você não pode excluir o único veículo!");
+        alert("Impossível apagar o último veículo remanescente!");
         return;
     }
-    if(confirm("Deseja apagar este veículo?")) {
+    if(confirm("Confirma a remoção definitiva deste veículo e históricos?")) {
         db.abastecimentos = db.abastecimentos.filter(a => a.veiculoId !== id);
         db.manutencoes = db.manutencoes.filter(m => m.veiculoId !== id);
         db.veiculos = db.veiculos.filter(v => v.id !== id);
@@ -718,7 +708,7 @@ function addAbast() {
     const tipo = document.getElementById('aTipo').value;
 
     if (!data || !km || !litros || !total) {
-        alert('Preencha os dados do abastecimento!'); return;
+        alert('Por favor, informe os dados obrigatórios do abastecimento.'); return;
     }
 
     if (!id) {
@@ -811,13 +801,13 @@ function processarPdf(input) {
     const file = input.files[0];
     if (file) {
         if (file.size > 1.5 * 1024 * 1024) { 
-            alert("Arquivo muito grande!");
+            alert("O arquivo excede o limite máximo permitido de 1.5MB.");
             input.value = ""; return;
         }
         const reader = new FileReader();
         reader.onload = function (e) {
             base64PdfTemporario = e.target.result;
-            document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-check-circle" style="color:green; margin-right:6px"></i>Ordem de Serviço Pronta!`;
+            document.getElementById('labelPdfText').innerHTML = `<i class="fas fa-check-circle" style="color:green; margin-right:6px"></i>Ordem de Serviço Anexada!`;
         };
         reader.readAsDataURL(file);
     }
@@ -833,7 +823,7 @@ function abrirPdfJanela(base64Data) {
         for (let i = 0; i < rawLength; ++i) uInt8Array[i] = raw.charCodeAt(i);
         const blob = new Blob([uInt8Array], { type: contentType });
         window.open(URL.createObjectURL(blob), '_blank');
-    } catch(e) { alert("Erro ao renderizar o PDF."); }
+    } catch(e) { alert("Erro ao abrir arquivo binário PDF."); }
 }
 
 function addManut() {
