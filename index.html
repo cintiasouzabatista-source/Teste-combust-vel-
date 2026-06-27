@@ -368,26 +368,58 @@ function calcularCombustivel(origem) {
 }
 
 // ================= VALIDAÇÃO MANUAL MELHORADA =================
+// ================= VALIDAÇÃO E EXTRAÇÃO AUTOMÁTICA AO COLAR =================
 function validarChaveManual(valor) {
-    // Remove espaços, traços e letras que o usuário possa colar junto
-    const limpo = valor.replace(/\D/g, ''); 
+    // Se o usuário colar o link completo do QR Code (https://...), extrai apenas os números
+    let chaveLimpa = valor.replace(/\D/g, ''); 
+    
+    // Se colou o link do QR Code do estado de SP, geralmente os dados de valor e litros estão no fim do link
+    if (valor.includes('p=') || valor.includes('vProd=')) {
+        try {
+            // Tenta extrair o valor total e litros direto dos parâmetros da URL colada
+            const urlParams = new URLSearchParams(valor.substring(valor.indexOf('?')));
+            
+            // Procura por padrões comuns de cupons fiscais (vProd = Valor total, qCom = Quantidade)
+            let totalCupom = urlParams.get('vProd') || urlParams.get('vCFe');
+            let litrosCupom = urlParams.get('qCom');
+            
+            if (totalCupom) document.getElementById('aTotal').value = parseFloat(totalCupom).toFixed(2);
+            if (litrosCupom) document.getElementById('aLitros').value = parseFloat(litrosCupom).toFixed(2);
+            if (totalCupom && litrosCupom) {
+                document.getElementById('aValorL').value = (parseFloat(totalCupom) / parseFloat(litrosCupom)).toFixed(2);
+            }
+        } catch (e) {
+            console.log("Link simples inserido, processando apenas a chave numérica.");
+        }
+    }
+
+    // Se a chave limpa tiver mais de 44 dígitos (caso venha com lixo), pega apenas os primeiros 44
+    if (chaveLimpa.length > 44) {
+        // Muitas vezes o link começa com os 44 números da chave
+        chaveLimpa = chaveLimpa.substring(0, 44);
+    }
+
     const actions = document.getElementById('nfeActions');
     const msg = document.getElementById('msgSucessoChave');
 
-    if (limpo.length === 44) {
-        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave Válida (44 números)!`;
+    if (chaveLimpa.length === 44) {
+        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave Detectada e Colada!`;
         actions.style.display = 'block';
         
-        // Sincroniza o valor limpo sem espaços de volta no input
-        document.getElementById('nfeChave').value = limpo;
+        // Devolve a chave limpa e certinha para o campo de texto
+        document.getElementById('nfeChave').value = chaveLimpa;
 
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(limpo);
+        // Se o usuário copiou o link completo, tenta extrair o número do cupom direto da chave
+        // Os dígitos de 26 a 34 na chave de acesso representam o número do documento fiscal (NFC-e)
+        let numCupomDoCodigo = parseInt(chaveLimpa.substring(25, 34));
+        if (!isNaN(numCupomDoCodigo) && numCupomDoCodigo > 0) {
+            console.log("Número do cupom extraído da chave: " + numCupomDoCodigo);
         }
     } else {
         actions.style.display = 'none';
     }
 }
+
 
 function irParaSefaz() {
     window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank');
