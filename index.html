@@ -61,7 +61,6 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
 .item-lista-botoes { display: flex; gap: 4px; }
 .item-lista-botoes button { width: auto; background: none; border: none; cursor: pointer; padding: 6px; font-size: 16px; }
 
-/* CSS Da Área de Scanner Local */
 #scanner-preview-container { display: none; margin-top: 12px; position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; border: 2px solid var(--primary); }
 #video-scanner { width: 100%; height: auto; display: block; }
 .scanning-line { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--primary); box-shadow: 0 0 8px var(--primary); animation: scanEffect 2s linear infinite; }
@@ -78,6 +77,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         <select id="seletorVeiculoGlobal" onchange="selecionarVeiculoAtivo(this.value)"></select>
     </div>
 
+    <!-- PAINEL -->
     <div id="painel" class="tab-content active">
         <div class="card odometro-destaque">
             <div style="display:flex; justify-content:space-between; align-items:center">
@@ -126,34 +126,39 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- ABASTECER -->
     <div id="abastecer" class="tab-content">
         <div class="card" style="border: 2px dashed var(--primary); background: rgba(37,99,235,0.02)">
-            <h3><i class="fas fa-qrcode"></i> Ler QR Code do Cupom Fiscal</h3>
-            <p class="muted" style="margin-bottom: 8px;">Aponte para o QR Code quadrado na parte inferior da sua nota fiscal do posto.</p>
+            <h3><i class="fas fa-qrcode"></i> Cupom Fiscal (NFC-e / NF-e)</h3>
+            <p class="muted" style="margin-bottom: 8px;">Escanear pelo QR Code ou digite a chave de 44 dígitos impressa na nota.</p>
             
             <div class="grid-2">
                 <button class="btn" onclick="ligarCameraLocal()"><i class="fas fa-camera"></i> Escanear</button>
-                <button class="btn" style="background: var(--muted);" onclick="desligarCameraLocal()">Fechar</button>
+                <button class="btn" style="background: var(--muted);" onclick="desligarCameraLocal()">Fechar Câmera</button>
             </div>
 
+            <!-- Janela da Câmera -->
             <div id="scanner-preview-container">
                 <div class="scanning-line"></div>
                 <video id="video-scanner" playsinline></video>
                 <canvas id="canvas-hidden" style="display:none;"></canvas>
             </div>
 
+            <!-- CAMPO ADICIONADO PARA ENTRADA MANUAL -->
             <div style="margin-top:12px;">
-                <input id="nfeChave" type="text" placeholder="Chave de Acesso capturada" readonly style="font-size:13px; text-align:center;">
-                <div id="nfeActions" style="display:none; margin-top: 8px; text-align:center;">
-                    <p style="color:var(--success); font-weight:700; font-size:14px;"><i class="fas fa-check-circle"></i> Chave Copiada!</p>
-                    <button class="btn" style="background: var(--success); font-size:13px; margin-top:6px;" onclick="window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank')">
+                <label class="muted">Chave de Acesso (44 dígitos):</label>
+                <input id="nfeChave" type="number" placeholder="Digite ou cole a chave aqui..." oninput="validarChaveManual(this.value)" style="text-align:center; font-size:14px; letter-spacing: 1px;">
+                
+                <div id="nfeActions" style="display:none; margin-top: 10px; text-align:center;">
+                    <p style="color:var(--success); font-weight:700; font-size:14px;" id="msgSucessoChave"><i class="fas fa-check-circle"></i> Chave Válida!</p>
+                    <button class="btn" style="background: var(--success); font-size:13px; margin-top:6px;" onclick="irParaSefaz()">
                         Ir para Sefaz baixar o XML da Nota
                     </button>
                 </div>
             </div>
 
             <hr style="border:0; border-top:1px solid var(--border); margin:12px 0;">
-            <p class="muted">Gere o XML na Sefaz e importe-o aqui para completar litros e valores:</p>
+            <p class="muted">Importe o arquivo .XML baixado para autocompletar:</p>
             <div class="file-input-wrapper">
                 <label class="file-input-label" for="fileNfe" id="labelNfeText">
                     <i class="fas fa-file-code" style="color:var(--primary); margin-right:6px"></i>Selecionar arquivo .XML
@@ -189,6 +194,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- MANUTENÇÃO -->
     <div id="manutencao" class="tab-content">
         <div class="card">
             <h3 id="tituloFormManut">Adicionar Manutenção</h3>
@@ -217,6 +223,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- MENU VEÍCULOS -->
     <div id="veiculosTab" class="tab-content">
         <div class="card">
             <h3 id="tituloGerenciarVeiculo">Cadastrar Novo Veículo</h3>
@@ -254,6 +261,7 @@ body.dark .selector-veiculo-top select { color: #60a5fa; border-color: #3b82f6; 
         </div>
     </div>
 
+    <!-- CONFIG -->
     <div id="config" class="tab-content">
         <div class="card">
             <h3>Regras do Odômetro Virtual</h3>
@@ -326,7 +334,7 @@ function showTab(id) {
     const correspondente = botoesNav.find(b => b.getAttribute('onclick').includes(`'${id}'`));
     if(correspondente) correspondente.classList.add('active');
 
-    desligarCameraLocal(); // Fecha a câmera para economizar bateria se mudar de aba
+    desligarCameraLocal(); 
     if(id === 'abastecer') { limparFormAbast(); renderAbast(); }
     if(id === 'manutencao') { limparFormManut(); renderManut(); }
     if(id === 'veiculosTab') { limparFormVeiculo(); renderVeiculos(); }
@@ -367,7 +375,28 @@ function calcularCombustivel(origem) {
     }
 }
 
-// ================= PROCESSAMENTO LOCAL DO SCANNER (jsQR) =================
+// ================= VALIDAÇÃO MANUAL E COMPORTAMENTO =================
+function validarChaveManual(valor) {
+    const limpo = valor.replace(/\D/g, ''); 
+    const actions = document.getElementById('nfeActions');
+    const msg = document.getElementById('msgSucessoChave');
+
+    if (limpo.length === 44) {
+        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chave informada manualmente!`;
+        actions.style.display = 'block';
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(limpo);
+        }
+    } else {
+        actions.style.display = 'none';
+    }
+}
+
+function irParaSefaz() {
+    window.open('https://www.nfe.fazenda.gov.br/portal/consultaRecapcha.aspx', '_blank');
+}
+
+// ================= SCANNER LOCAL VIA CÂMERA =================
 function ligarCameraLocal() {
     const video = document.getElementById('video-scanner');
     const container = document.getElementById('scanner-preview-container');
@@ -384,7 +413,7 @@ function ligarCameraLocal() {
         animationFrameScanner = requestAnimationFrame(escanearFrameLocal);
     })
     .catch(function(err) {
-        alert("Erro ao abrir a câmera local. Dê permissão de câmera ao seu navegador.");
+        alert("Erro ao abrir a câmera local. Dê permissão ao navegador.");
         container.style.display = 'none';
     });
 }
@@ -409,32 +438,25 @@ function escanearFrameLocal() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Faz a decodificação matemática pura do QR Code em milissegundos
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
-        });
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
         
         if (code) {
-            // QR Code detectado localmente!
             desligarCameraLocal();
-            
             const regexChave = /\d{44}/;
             const match = code.data.match(regexChave);
             
             if (match && match[0]) {
                 const chave = match[0];
                 document.getElementById('nfeChave').value = chave;
+                document.getElementById('msgSucessoChave').innerHTML = `<i class="fas fa-check-circle"></i> Chave Copiada via QR Code!`;
                 
-                // Copia sem precisar interagir
                 if (navigator.clipboard) {
                     navigator.clipboard.writeText(chave);
                 }
-                
                 document.getElementById('nfeActions').style.display = 'block';
                 return;
             } else {
-                alert("QR Code detectado, mas não contém uma chave de Nota Fiscal válida.");
+                alert("QR Code lido, mas não contém uma chave de 44 dígitos.");
             }
         }
     }
@@ -466,9 +488,9 @@ function processarXmlNfe(input) {
                     document.getElementById('aTotal').value = total.toFixed(2);
                     
                     document.getElementById('labelNfeText').innerHTML = `<i class="fas fa-check-circle" style="color:green"></i> XML Pronto!`;
-                    alert("Sucesso! Valores carregados do XML. Agora preencha os kms e salve!");
+                    alert("Dados do XML importados com sucesso!");
                 } else {
-                    alert("Não encontramos os dados de itens combustível neste arquivo XML.");
+                    alert("Dados do combustível não encontrados no XML.");
                 }
             } catch (err) {
                 alert("Erro ao ler arquivo XML.");
@@ -582,7 +604,7 @@ function renderVeiculos() {
             <div onclick="selecionarVeiculoAtivo('${v.id}')" style="cursor:pointer; flex-grow:1;">
                 <i class="fas ${v.vModelo==='Moto'?'fa-motorcycle':'fa-car'}" style="margin-right:8px; color:${v.id === db.ativo ? 'var(--primary)':'var(--muted)'}"></i>
                 <strong>${v.vNome} (${v.vAno || '---'})</strong><br>
-                <span class="muted" style="font-size:12px;">Aquisição: ${v.kmAquisicao?.toLocaleString('pt-BR') || 0} km • ${v.dataAquisicao ? v.dataAquisicao.split('-').reverse().join('/') : '---'}</span>
+                <span class="muted" style="font-size:12px;">Aquisição: ${v.kmAquisicao?.toLocaleString('pt-BR') || 0} km</span>
             </div>
             <div class="item-lista-botoes">
                 <button onclick="iniciarEditarVeiculo('${v.id}')" style="color:var(--primary);"><i class="fas fa-edit"></i></button>
@@ -808,17 +830,10 @@ function abrirPdfJanela(base64Data) {
         const raw = window.atob(parts[1]);
         const rawLength = raw.length;
         const uInt8Array = new Uint8Array(rawLength);
-        
-        for (let i = 0; i < rawLength; ++i) {
-            uInt8Array[i] = raw.charCodeAt(i);
-        }
-        
+        for (let i = 0; i < rawLength; ++i) uInt8Array[i] = raw.charCodeAt(i);
         const blob = new Blob([uInt8Array], { type: contentType });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-    } catch(e) {
-        alert("Erro ao renderizar o PDF.");
-    }
+        window.open(URL.createObjectURL(blob), '_blank');
+    } catch(e) { alert("Erro ao renderizar o PDF."); }
 }
 
 function addManut() {
